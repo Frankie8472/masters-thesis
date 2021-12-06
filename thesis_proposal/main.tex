@@ -1,0 +1,129 @@
+\documentclass{article}
+\usepackage[top=0.75in, bottom=0.75in, left=1in, right=1in]{geometry}
+
+\usepackage{pdfpages}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage[english]{babel}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{footnote}
+\usepackage{verbatimbox}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{color}
+\usepackage{lscape}
+\usepackage{amsmath}
+%\usepackage{cite}
+\usepackage{longtable}
+\usepackage[square,numbers]{natbib}
+\bibliographystyle{abbrvnat}
+
+\makesavenoteenv{tabular}
+\makesavenoteenv{table}
+
+\lstset{ %
+	backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
+	basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+	captionpos=b,                    % sets the caption-position to bottom
+	frame=single,	                   % adds a frame around the code
+	keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+}
+
+
+
+\title{Creating a Topic Model of Language Models}
+\date{\today}
+\author{Clara Meister, Franz Knobel}
+\begin{document}
+\newcommand{\polylog}[0]{~\text{polylog}}
+\newcommand{\poly}[0]{~\text{poly}}
+	
+\maketitle
+
+\begin{flushleft}
+\textbf{Student}: Franz Knobel (knobelf@student.ethz.ch) \\
+\textbf{Supervisor}: Prof. Ryan Cotterell, Clara Meister \\
+\textbf{Duration}: 6 months
+\end{flushleft}
+
+\section{Overview}
+Pre-trained language models serve as the building blocks for many tasks in natural language processing (NLP). 
+They have not only yielded state-of-the-art performance on myriad task, but have also reduced the computational resources often required to train NLP models by providing an advanced starting point for practitioners. Yet, due to the sheer size of these models, the learned probability distribution over natural language strings is difficult to analyze. The support of the distribution alone---the set of all possible strings that can be built using a specific vocabulary---is countably infinite. While a number of techniques have recently been proposed for analyzing the attributes of natural language that these models learn, it is still unclear what portions of the semantic space they learn (or fail) to represent.
+
+%Nevertheless, because pre-trained models are generic, they may underperform on specific domains.
+%Typically trained on millions---if not billions---of tokens of natural language text \cite{gpt2,bert,gpt3} you can imagine this takes a lot of time.
+
+Here we propose bringing back a standard model from natural language processing, the topic model, in order to gain a better understanding of this subject. By sampling strings from a pre-trained language model, we generate a pseudo-corpus that should provide an unbiased representation of the information learned by the model. We then learn topic models---using techniques such as LDA---to understand the distribution over topics that the model captures. Using this analysis technique, we hope to gain a better understanding of the variation in downstream performance across pre-trained models. We next propose a method for using these topic models to aid in an important downstream application of pretrained language models: natural language generation.
+
+Recently, pre-trained language models have been applied to a number of text generation tasks, such as Abstractive Summarization or Story Generation. These tasks typically require fine-tuning the model on some task-related dataset---otherwise, sampling (unconditionally) from the language model would generate random text, likely irrelevant text. We propose trying to control text generation using the topic model learned for the pre-trained model: given a chosen topic, we use the distribution over words learned by the LDA model, interpolating it with the distribution from our language model, in order to steer generation towards that topic. Such a method would avoid the used of computational resources required to fine-tune such models, and will hopefully make controlled generation techniques produce more natural text.
+
+\section{Goal of the Thesis}
+In this thesis, the student will employ a combination of techniques from "\textit{Topic Modeling}", "\textit{Pre-trained Language Models}" and "\textit{Topic-guided Text Generation}". The first part of this thesis will consist of learning and analyzing the different topic distribution that pre-trained language models capture. The second part of this thesis will involve analyzing these distributions and the effects they have on various model attributes and performance. Lastly, the resulting topic distributions will be used to try to guide text generation from pre-trained language models towards a specific topic.
+
+\section{Tasks}
+\begin{enumerate}
+    \item Proposal writing + Literature review (incl. short summary of each paper read)
+    \begin{enumerate}
+        \item Proposal writing
+        \item Topic modeling \cite{lda, topicnl, survey}
+        \item Language modeling
+        \item Language generation strategies
+        \item Pre-trained language models \cite{ptm2020, bert, gpt2, gpt3, oppo}
+        \item Topic-guided text generation \cite{topicaug, topicguided, topically}
+        \item On interpolating between probability \cite{interpol} distributions
+    \end{enumerate}
+    \item Code infrastructure setup
+    \begin{enumerate}
+        \item Familiarize with pre-trained language model libraries in python, including how to generate text from them
+        \item Implement LDA models in python
+       \item Implement optimization algorithms for learning LDA models
+       \item Modify language generation code base to incorporate LDA distributions
+    \end{enumerate}
+    \item Experimentation
+    \begin{enumerate}
+        \item Learn LDA models for various pretrained models
+        \item Design and conduct experiments on the effectiveness of proposed decoding strategy
+    \end{enumerate}
+    \item Analysis and thesis writing
+    \begin{enumerate}
+        \item Analyze and compare the LDA distributions learned by different models resulting distributions
+        \item Analyze the impact of guiding generation and how different parameters affect the resulting text
+        \item Thesis writing
+    \end{enumerate}
+\end{enumerate}
+
+\section{Expected Project Timeline}
+{\bf Start}:  November 2021
+\\
+{\bf End}:  April 2022
+
+\begin{itemize}
+    \item  November 2021 -  November 2021: Literature review
+    \item  December 2021 -  January 2022: Code infrastructure
+    \item  February 2022 -  February 2022: Experiment management
+    \item  March 2022 -  April 2022: Analysis and thesis writing
+\end{itemize}
+
+
+\section{Grading}
+
+The Master's Thesis (MT) is a graded semester performance. In order to successfully complete the MT, a grade of 4.0 or higher must be obtained.  The supervisor establishes the assessment criteria in a written report, which can include a presentation. In principle, the following evaluation scale is applied: 
+\begin{figure}[h!]
+    \begin{tabular}{|l|l|}
+        \hline  Grade & Requirements  \\ \hline \hline
+        6.00  & Work and results are publishable for international workshops  \\ \hline
+        5.50 & Thesis quality significantly exceeds expectations  \\ \hline
+        5.00 & Thesis meets expectations  \\ \hline
+        4.50 & Thesis partially meets expectations and has minor deficits   \\ \hline
+        4.00 & Thesis meets minimum quality requirements; but has major deficits  and  is  clearly  below expectations \\ \hline 
+    \end{tabular}
+\end{figure}
+
+\bibliography{mainlib}{}
+
+\end{document}

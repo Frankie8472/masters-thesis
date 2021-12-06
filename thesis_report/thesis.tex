@@ -1,0 +1,69 @@
+\documentclass[a4paper, oneside]{thesis}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% DOCUMENT METADATA
+
+\thesistype{Master's Thesis} % Master's Thesis, Bachelor's Thesis, Semester Thesis, Group Project
+\title{Creating a Topic Model of Language Models}
+
+\author{Franz Knobel}
+\email{knobelf@student.ethz.ch}
+
+\institute{Rycolab\\[2pt]
+Computational Linguistics, Natural Language Processing and Machine Learning\\[2pt]
+ETH Zürich}
+
+% Optionally, you can put in your own logo here
+%\logo{\includegraphics[width=0.2\columnwidth]{figures/disco_logo_faded}}
+
+\supervisors{Clara Meister\\[2pt] Prof.\ Dr.\ Ryan Cotterell}
+
+% Optionally, keywords and categories of the work can be shown (on the Abstract page)
+%\keywords{Keywords go here.}
+%\categories{ACM categories go here.}
+
+\date{\today}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\frontmatter % do not remove this line
+\maketitle
+
+\cleardoublepage
+
+\begin{acknowledgements}
+	I thank Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+\end{acknowledgements}
+
+
+\begin{abstract}
+    The abstract should be short, stating what you did and what the most important result is.
+	Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+\end{abstract}
+
+\tableofcontents
+
+\mainmatter % do not remove this line
+
+% Start writing here
+\include{chapters/introduction}
+\include{chapters/relatedwork}
+\include{chapters/problemstatement}
+\include{chapters/analysis}
+\include{chapters/solution}
+\include{chapters/experimentation}
+\include{chapters/evaluation}
+\include{chapters/conclusion}
+
+% This displays the bibliography for all cited external documents. All references have to be defined in the file references.bib and can then be cited from within this document.
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+% This creates an appendix chapter, comment if not needed.
+\include{chapters/appendix}
+\end{document}
