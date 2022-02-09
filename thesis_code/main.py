@@ -86,112 +86,19 @@ def create_corpus(
     torch.cuda.empty_cache()
 
 
+def get_metadata():
+    with open('data/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
+        for line in f:
+            yield line
+
+
 def main():
-    corpus_size = 4
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    load_size = 2
+    o = 0
+    metadata = get_metadata()
+    for paper in metadata:
+        #print(json.loads(paper)['abstract'])
+        o += 1
 
-    set_seed(42)    # For reproducability: set1 seed=42 set2 seed=1337
-
-    case = 1
-    if case == 1:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="gpt2",
-            model_name="data/model_gpt2-wiki_no_titles",
-            max_document_length=None,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPT2LMHeadModel,
-            pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-baseline_no_header2.json",
-            load_size=load_size
-        )
-    elif case == 2:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="gpt2",
-            model_name="ma/data/model_gpt2-baseline_self",
-            max_document_length=None,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPT2LMHeadModel,
-            pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-baseline_self.json",
-            load_size=load_size
-        )
-    elif case == 3:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="gpt2",
-            model_name="ma/data/model_gpt2-baseline",
-            max_document_length=None,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPT2LMHeadModel,
-            pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-baseline.json",
-            load_size=load_size
-        )
-    elif case == 4:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="gpt2",
-            model_name="gpt2",
-            max_document_length=None,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPT2LMHeadModel,
-            pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data2_gpt2.json",
-            load_size=load_size
-        )
-    elif case == 5:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="gpt2-large",
-            model_name="gpt2-large",
-            max_document_length=None,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPT2LMHeadModel,
-            pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-large.json",
-            load_size=load_size
-        )
-    elif case == 6:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="gpt2-xl",
-            model_name="gpt2-xl",
-            max_document_length=None,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPT2LMHeadModel,
-            pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-xl.json",
-            load_size=load_size
-        )
-    elif case == 7:
-        print(f"Entering case: {case}")
-        create_corpus(
-            tokenizer_name="EleutherAI/gpt-neo-2.7B",
-            model_name="EleutherAI/gpt-neo-2.7B",
-            max_document_length=2048,
-            device=device,
-            corpus_size=corpus_size,
-            tokenizer_model=GPT2Tokenizer,
-            lm_model=GPTNeoForCausalLM,
-            pad_token_id=None,
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2neo.json",
-            load_size=load_size
-        )
-
+    print(o)
 
 main()
