@@ -12,20 +12,21 @@ from gensim.models import Phrases
 from gensim.corpora import Dictionary
 from gensim.models import LdaMulticore
 from nltk import WordNetLemmatizer, RegexpTokenizer
+from transformers import set_seed
 
 
 def load_wikitext(samples=100000):
     heading_pattern = '( \n [=\s].*[=\s] \n)'
-    train_data = Path('./ma/data/wiki.train.raw').read_text(encoding='utf-8')
+    train_data = Path('/cluster/home/knobelf/ma/data/wiki.train.raw').read_text(encoding='utf-8')
     train_split = re.split(heading_pattern, train_data)
     train_headings = [x[7:-7] for x in train_split[1::2]]
-    train_articles0 = [x for x in train_split[2::2]]
-    return random.choices(train_articles0, k=samples)
+    train_articles = [x for x in train_split[2::2]]
+    return random.choices(train_articles, k=samples)
 
 
 def load_arxiv(samples=100000):
     def get_metadata():
-        with open('data/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
+        with open('/cluster/home/knobelf/ma/data/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
             for line in f:
                 yield line
 
@@ -218,7 +219,7 @@ def main():
     elif len(sys.argv) >= 5:
         pathname = sys.argv[4]
 
-    random.seed(42)
+    set_seed(42)
     samples = 100000
 
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
@@ -312,7 +313,7 @@ def main():
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
-        if dataset == 5:
+        if dataset == 7:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
             os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
@@ -331,12 +332,12 @@ def main():
             model_2.save(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/ldamodel_{topics}")
 
     # Create LDA Model for arxiv and gpt2_nt
-    elif dataset == 7 or dataset == 8:
+    elif dataset == 9 or dataset == 10:
         data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2_nt.json", samples)
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
-        if dataset == 5:
+        if dataset == 9:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
             os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/gpt2_nt/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
