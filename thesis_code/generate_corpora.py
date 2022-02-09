@@ -5,7 +5,8 @@ import sys
 
 import torch
 from tqdm.auto import tqdm
-from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT2LMHeadModel, GPTNeoForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT2LMHeadModel, GPTNeoForCausalLM, \
+    set_seed
 
 
 def create_corpus(
@@ -93,57 +94,81 @@ def create_corpus(
 
 
 def main():
-    corpus_size = 305108
+    corpus_size = 100000
     device = "cuda" if torch.cuda.is_available() else "cpu"
     load_size = 100
+
     if len(sys.argv) < 2:
         print("ERROR: No input argument")
         return
 
     case = int(sys.argv[1])
+
+    set_seed(42)
+
+    # Integrated
     if case == 1:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model_gpt2-baseline_no_header",
+            model_name="ma/data/model-gpt2-wiki-integrated",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/scratch/knobelf/data_gpt2-baseline_no_header.json",
+            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki-integrated.json",
             load_size=load_size
         )
+
+    # Self
     elif case == 2:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model_gpt2-baseline_self",
+            model_name="ma/data/model-gpt2-wiki",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/scratch/knobelf/data_gpt2-baseline_self.json",
+            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki.json",
             load_size=load_size
         )
+
+    # No titles
     elif case == 3:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model_gpt2-baseline",
+            model_name="ma/data/model-gpt2_nt-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/scratch/knobelf/data_gpt2-baseline.json",
+            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2_nt-wiki_nt.json",
             load_size=load_size
         )
     elif case == 4:
+        print(f"Entering case: {case}")
+        set_seed(1337)
+        create_corpus(
+            tokenizer_name="gpt2",
+            model_name="ma/data/model-gpt2_nt-wiki_nt",
+            max_document_length=None,
+            device=device,
+            corpus_size=corpus_size,
+            tokenizer_model=GPT2Tokenizer,
+            lm_model=GPT2LMHeadModel,
+            pad_token_id='eos_token_id',
+            save_path="/cluster/home/knobelf/ma/data/dataset2-gpt2_nt-wiki_nt.json",
+            load_size=load_size
+        )
+    elif case == 5:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
@@ -154,10 +179,25 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/scratch/knobelf/data_gpt2.json",
+            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2.json",
             load_size=load_size
         )
-    elif case == 5:
+    elif case == 6:
+        print(f"Entering case: {case}")
+        set_seed(1337)
+        create_corpus(
+            tokenizer_name="gpt2",
+            model_name="gpt2",
+            max_document_length=None,
+            device=device,
+            corpus_size=corpus_size,
+            tokenizer_model=GPT2Tokenizer,
+            lm_model=GPT2LMHeadModel,
+            pad_token_id='eos_token_id',
+            save_path="/cluster/home/knobelf/ma/data/dataset2-gpt2.json",
+            load_size=load_size
+        )
+    elif case == 7:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2-large",
@@ -168,10 +208,10 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/scratch/knobelf/data_gpt2-large.json",
+            save_path="/cluster/home/knobelf/ma/data/data_gpt2-large.json",
             load_size=load_size
         )
-    elif case == 6:
+    elif case == 8:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2-xl",
@@ -182,10 +222,10 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/scratch/knobelf/data_gpt2-xl.json",
+            save_path="/cluster/home/knobelf/ma/data/data_gpt2-xl.json",
             load_size=load_size
         )
-    elif case == 7:
+    elif case == 9:
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="EleutherAI/gpt-neo-2.7B",
@@ -196,7 +236,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPTNeoForCausalLM,
             pad_token_id=None,
-            save_path="/cluster/scratch/knobelf/data_gpt2neo.json",
+            save_path="/cluster/home/knobelf/ma/data/data_gpt2neo.json",
             load_size=load_size
         )
 
