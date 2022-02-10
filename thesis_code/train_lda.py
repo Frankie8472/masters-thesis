@@ -211,7 +211,7 @@ def main():
         print("ERROR: Incorrect number of input arguments")
         return
 
-    union = bool(sys.argv[1])
+    union = bool(int(sys.argv[1]))
     dataset = int(sys.argv[2])
     topics = int(sys.argv[3])
     pathname = None
