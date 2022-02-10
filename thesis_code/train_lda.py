@@ -34,13 +34,17 @@ def load_arxiv(samples=100000):
     size = 0
     for paper in metadata:
         size += 1
-
-    choices = random.sample(np.arange(size), k=samples)
-
+    choices = random.sample(list(np.arange(size)), k=samples)
+    choices.sort()
+    metadata = get_metadata()
     step = 0
+    idx = 0
     corpus = []
     for paper in metadata:
-        if step in choices:
+        if idx >= samples:
+            break
+        if step == choices[idx]:
+            idx += 1
             corpus.append(json.loads(paper)['abstract'])
         step += 1
     return corpus
@@ -49,7 +53,7 @@ def load_arxiv(samples=100000):
 def load_json(filename, samples=100000):
     with open(filename, 'r') as file:
         train_articles = json.load(file)
-    return random.choices(train_articles, k=samples)
+    return random.sample(train_articles, k=samples)
 
 
 def tokenize(docs):
