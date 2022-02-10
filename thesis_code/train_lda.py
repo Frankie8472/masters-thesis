@@ -21,7 +21,7 @@ def load_wikitext(samples=100000):
     train_split = re.split(heading_pattern, train_data)
     train_headings = [x[7:-7] for x in train_split[1::2]]
     train_articles = [x for x in train_split[2::2]]
-    return random.choices(train_articles, k=samples)
+    return random.sample(train_articles, k=samples)
 
 
 def load_arxiv(samples=100000):
@@ -35,7 +35,7 @@ def load_arxiv(samples=100000):
     for paper in metadata:
         size += 1
 
-    choices = random.choices(np.arange(size), k=samples)
+    choices = random.sample(np.arange(size), k=samples)
 
     step = 0
     corpus = []
@@ -236,7 +236,7 @@ def main():
     # Create LDA Model for wiki_nt and gpt2_nt
     elif dataset == 1 or dataset == 2:
         data_train_1 = load_wikitext(samples)
-        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2_nt-wiki_nt.json", samples)
+        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json", samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 1:
@@ -260,8 +260,8 @@ def main():
 
     # Create LDA Model for gpt2_nt and gpt2_nt
     elif dataset == 3 or dataset == 4:
-        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2_nt-wiki_nt.json", samples)
-        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset2-gpt2_nt-wiki_nt.json", samples)
+        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json", samples)
+        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset2-gpt2-wiki_nt.json", samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 3:
@@ -333,7 +333,7 @@ def main():
 
     # Create LDA Model for arxiv and gpt2_nt
     elif dataset == 9 or dataset == 10:
-        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2_nt.json", samples)
+        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json", samples)
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
