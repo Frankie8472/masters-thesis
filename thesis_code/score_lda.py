@@ -1,17 +1,13 @@
-import gc
 import json
 import os
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter, MaxNLocator
+from matplotlib.ticker import MaxNLocator
 from gensim.models.ldamulticore import LdaMulticore
 from gensim.utils import SaveLoad
-import torch
 from tqdm.auto import tqdm
+from operator import itemgetter
 import itertools
-from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT2LMHeadModel, GPTNeoForCausalLM, \
-    set_seed
 
 
 def score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2, distance='jensen_shannon'):
@@ -38,14 +34,14 @@ def score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2, distance='jen
 
     cnt1 = np.zeros(ldamodel_1.num_topics)
     for doc in corpus_1:
-        prob = ldamodel_1.get_document_topics(doc, minimum_probability=0.0)
-        topic = max(prob, prob.get)
-        cnt1[topic] += 1
+        topic_prob_list = ldamodel_1.get_document_topics(doc, minimum_probability=0.0)
+        topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
+        cnt1[topic_prob_tupel[0]] += 1
     cnt2 = np.zeros(ldamodel_1.num_topics)
     for doc in corpus_2:
-        prob = ldamodel_2.get_document_topics(doc, minimum_probability=0.0)
-        topic = max(prob, prob.get)
-        cnt2[topic] += 1
+        topic_prob_list = ldamodel_2.get_document_topics(doc, minimum_probability=0.0)
+        topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
+        cnt2[topic_prob_tupel[0]] += 1
 
     return (np.sum(cnt1 * min1) / np.sum(cnt1) + np.sum(cnt2 * min2) / np.sum(cnt2)) / 2
 
