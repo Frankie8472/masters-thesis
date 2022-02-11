@@ -73,7 +73,6 @@ def calc_score():
     ]
     length = len(topics) * len(modes) * len(model_pairs)
     with tqdm(total=length) as pbar:
-        fig, ax = plt.subplots(figsize=(18, 14))
         for model_pair in model_pairs:
             for mode in modes:
                 for idx, topic in enumerate(topics):
@@ -144,7 +143,7 @@ def calc_score():
                     # Calculate Difference Graph and save it
                     mdiff, annotation = ldamodel_1.diff(ldamodel_2, distance=distance, num_words=words)
 
-                    plt.cla()
+                    fig, ax = plt.subplots(figsize=(18, 14))
                     data = ax.imshow(mdiff, cmap='RdBu_r', vmin=0.0, vmax=1.0, origin='lower')
                     for axis in [ax.xaxis, ax.yaxis]:
                         axis.set_major_locator(MaxNLocator(integer=True))
@@ -152,6 +151,7 @@ def calc_score():
                         f"Topic difference ({path1.split('/')[1]} - {path2.split('/')[1]} - {mode})[{distance} distance] for {topic} topics")
                     plt.colorbar(data)
                     plt.savefig(f"/cluster/scratch/knobelf/{path1.split('/')[0]}/diff_{short_mode}_{topic}.png", dpi=300)
+                    plt.close('all')
                     pbar.update(1)
 
 
