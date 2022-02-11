@@ -83,12 +83,12 @@ def calc_score():
                 for idx, topic in enumerate(topics):
                     path1 = model_pair[0]
                     path2 = model_pair[1]
-                    path_ldamodel_1 = f"/cluster/scratch/{path1}/{mode}/{topic}/ldamodel_{topic}"
-                    path_ldamodel_2 = f"/cluster/scratch/{path2}/{mode}/{topic}/ldamodel_{topic}"
-                    path_dictionary_1 = f"/cluster/scratch/{path1}/{mode}/{topic}/dictionary_{topic}"
-                    path_dictionary_2 = f"/cluster/scratch/{path2}/{mode}/{topic}/dictionary_{topic}"
-                    path_corpus_1 = f"/cluster/scratch/{path1}/{mode}/{topic}/corpus_{topic}"
-                    path_corpus_2 = f"/cluster/scratch/{path2}/{mode}/{topic}/corpus_{topic}"
+                    path_ldamodel_1 = f"/cluster/scratch/knobelf/{path1}/{mode}/{topic}/ldamodel_{topic}"
+                    path_ldamodel_2 = f"/cluster/scratch/knobelf/{path2}/{mode}/{topic}/ldamodel_{topic}"
+                    path_dictionary_1 = f"/cluster/scratch/knobelf/{path1}/{mode}/{topic}/dictionary_{topic}"
+                    path_dictionary_2 = f"/cluster/scratch/knobelf/{path2}/{mode}/{topic}/dictionary_{topic}"
+                    path_corpus_1 = f"/cluster/scratch/knobelf/{path1}/{mode}/{topic}/corpus_{topic}"
+                    path_corpus_2 = f"/cluster/scratch/knobelf/{path2}/{mode}/{topic}/corpus_{topic}"
 
                     # Load pretrained models from disk.
                     with open(path_corpus_1, 'r') as file:
@@ -106,7 +106,7 @@ def calc_score():
                     # Compare models with scores_by_topic_probability and save
                     diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/scratch/scores_by_topic_probability_values.json"
+                    score_path = "/cluster/scratch/knobelf/scores_by_topic_probability_values.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
@@ -127,7 +127,7 @@ def calc_score():
                     # Compare models with score_by_top_topic and save
                     diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/scratch/score_by_top_topic.json"
+                    score_path = "/cluster/scratch/knobelf/score_by_top_topic.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
@@ -155,7 +155,7 @@ def calc_score():
                     plt.title(
                         f"Topic difference ({path1.split('/')[1]} - {path2.split('/')[1]} - {mode})[{distance} distance] for {topic} topics")
                     plt.colorbar(data)
-                    plt.savefig(f"/cluster/scratch/{path1.split('/')[0]}/diff_{short_mode}_{topic}.png", dpi=300)
+                    plt.savefig(f"/cluster/scratch/knobelf/{path1.split('/')[0]}/diff_{short_mode}_{topic}.png", dpi=300)
                     pbar.update(1)
 
 
