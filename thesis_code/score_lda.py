@@ -101,7 +101,7 @@ def calc_score():
                     # Compare models with scores_by_topic_probability and save
                     diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/scratch/knobelf/scores_by_topic_probability_values.json"
+                    score_path = "/cluster/scratch/knobelf/score_by_topic_probability_values.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:

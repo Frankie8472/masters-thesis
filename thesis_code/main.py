@@ -137,7 +137,7 @@ def calc_score():
                     # Compare models with scores_by_topic_probability and save
                     diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "data/scores_by_topic_probability_values.json"
+                    score_path = "data/score_by_topic_probability_values.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
@@ -190,8 +190,56 @@ def calc_score():
                     pbar.update(1)
 
 
+def generate_plot():
+    for case in [1,2,3,4]:
+        if case == 1:
+            score_file_path = "data/score_by_top_topic.json"
+            title = "'Score by Top Topic'-Topic Graph for LDA Models (intersected dicts)"
+            y_label = "Score by Top Topic (lower is better)"
+            mode = 'is'
+        elif case == 2:
+            score_file_path = "data/score_by_top_topic.json"
+            title = "'Score by Top Topic'-Topic Graph for LDA Models (unionized dicts)"
+            y_label = "Score by Top Topic (lower is better)"
+            mode = 'un'
+        elif case == 3:
+            score_file_path = "data/score_by_topic_probability_values.json"
+            title = "'Score by Topic Probability'-Topic Graph for LDA Models (intersected dicts)"
+            y_label = "Score by Topic Probability (lower is better)"
+            mode = 'is'
+        else:
+            score_file_path = "data/score_by_topic_probability_values.json"
+            title = "'Score by Topic Probability'-Topic Graph for LDA Models (unionized dicts)"
+            y_label = "Score by Topic Probability (lower is better)"
+            mode = 'un'
+        if os.path.isfile(score_file_path):
+            with open(score_file_path, 'r') as file:
+                score_values = json.load(file)
+
+        names = list(score_values.keys())
+        values = list(score_values.values())
+        topics = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100]
+
+        plt.clf()
+        fig, axes = plt.subplots()
+        for idx, name in enumerate(names):
+            if mode not in name:
+                continue
+            axes.plot(topics, values[idx], label=name)
+        axes.legend(bbox_to_anchor=(1, 1))
+        plt.ylim(0, 1)
+        axes.set_title(title)
+        axes.set_xscale('log')
+        axes.set_xlabel('Number of Topics')
+        axes.set_ylabel(y_label)
+        axes.set_xticks(topics)
+        axes.get_xaxis().set_major_formatter(ScalarFormatter())
+        plt.savefig(f"{score_file_path[:-5]}_{mode}.png", dpi=300)
+        plt.close('all')
+
+
 def main():
-    calc_score()
+    generate_plot()
 
 
 main()
