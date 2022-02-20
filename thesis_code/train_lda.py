@@ -21,7 +21,7 @@ def load_wikitext(samples=100000):
     train_split = re.split(heading_pattern, train_data)
     train_headings = [x[7:-7] for x in train_split[1::2]]
     train_articles = [x for x in train_split[2::2]]
-    return random.sample(train_articles, k=samples)
+    return random.choices(train_articles, k=samples)
 
 
 def load_arxiv(samples=100000):
@@ -34,7 +34,7 @@ def load_arxiv(samples=100000):
     size = 0
     for paper in metadata:
         size += 1
-    choices = random.sample(list(np.arange(size)), k=samples)
+    choices = random.choices(list(np.arange(size)), k=samples)
     choices.sort()
     metadata = get_metadata()
     step = 0
@@ -44,16 +44,25 @@ def load_arxiv(samples=100000):
         if idx >= samples:
             break
         if step == choices[idx]:
-            idx += 1
+            if step != choices[idx+1]:
+                step += 1
             corpus.append(json.loads(paper)['abstract'])
-        step += 1
+            idx += 1
+        else:
+            step += 1
     return corpus
 
 
-def load_json(filename, samples=100000):
+def load_json_choices(filename, samples=100000):
     with open(filename, 'r') as file:
         train_articles = json.load(file)
-    return random.sample(train_articles, k=samples)
+    return random.choices(train_articles, k=samples)
+
+
+def load_json(filename):
+    with open(filename, 'r') as file:
+        train_articles = json.load(file)
+    return train_articles
 
 
 def tokenize(docs):
@@ -229,7 +238,7 @@ def main():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
 
     if dataset == 0:
-        data_train = load_json(pathname, samples)
+        data_train = load_json(pathname)
         dictionary, corpus = tokenize(data_train)
         model = train_lda(dictionary, corpus, topics)
         with open(f"/cluster/scratch/knobelf/corpus2_{topics}", "w") as file:
@@ -240,7 +249,7 @@ def main():
     # Create LDA Model for wiki_nt and gpt2_nt
     elif dataset == 1 or dataset == 2:
         data_train_1 = load_wikitext(samples)
-        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json", samples)
+        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 1:
@@ -264,8 +273,8 @@ def main():
 
     # Create LDA Model for gpt2_nt and gpt2_nt
     elif dataset == 3 or dataset == 4:
-        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json", samples)
-        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset2-gpt2-wiki_nt.json", samples)
+        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json")
+        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset2-gpt2-wiki_nt.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 3:
@@ -289,8 +298,8 @@ def main():
 
     # Create LDA Model for gpt2 and gpt2
     elif dataset == 5 or dataset == 6:
-        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2.json", samples)
-        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset2-gpt2.json", samples)
+        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2.json")
+        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset2-gpt2.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 5:
@@ -337,7 +346,7 @@ def main():
 
     # Create LDA Model for arxiv and gpt2_nt
     elif dataset == 9 or dataset == 10:
-        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json", samples)
+        data_train_1 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json")
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
