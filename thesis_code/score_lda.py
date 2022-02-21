@@ -55,8 +55,8 @@ def calc_score():
             "lda-wiki_nt-gpt2_nt/gpt2_nt"
         ),
         (
-            "lda-gpt2_nt-gpt2_nt/gpt2_1_nt",
-            "lda-gpt2_nt-gpt2_nt/gpt2_2_nt"
+            "lda-gpt2_nt-gpt2_nt/gpt2_nt_1",
+            "lda-gpt2_nt-gpt2_nt/gpt2_nt_2"
         ),
         (
             "lda-gpt2_nt-arxiv/gpt2_nt",
