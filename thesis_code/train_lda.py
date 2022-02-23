@@ -17,7 +17,7 @@ from transformers import set_seed
 
 def load_wikitext(samples=100000):
     heading_pattern = '( \n [=\s].*[=\s] \n)'
-    train_data = Path('/cluster/home/knobelf/ma/data/wiki.train.raw').read_text(encoding='utf-8')
+    train_data = Path('/cluster/work/cotterell/knobelf/data/data_wikitext-103-raw/wiki.train.raw').read_text(encoding='utf-8')
     train_split = re.split(heading_pattern, train_data)
     train_headings = [x[7:-7] for x in train_split[1::2]]
     train_articles = [x for x in train_split[2::2]]
@@ -26,7 +26,7 @@ def load_wikitext(samples=100000):
 
 def load_arxiv(samples=100000):
     def get_metadata():
-        with open('/cluster/home/knobelf/ma/data/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
+        with open('/cluster/work/cotterell/knobelf/data/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
             for line in f:
                 yield line
 
@@ -220,6 +220,8 @@ def main():
         print("ERROR: Incorrect number of input arguments")
         return
 
+    data_folder = "/cluster/work/cotterell/knobelf/data/"
+
     union = bool(int(sys.argv[1]))
     dataset = int(sys.argv[2])
     topics = int(sys.argv[3])
@@ -227,10 +229,14 @@ def main():
 
     combi = "union" if union else "intersection"
 
-    if not len(sys.argv) >= 5 and dataset == 0:
+    extra_folder = ""
+    if len(sys.argv) >= 5:
+        extra_folder = "/" + sys.argv[4]
+
+    if not len(sys.argv) >= 6 and dataset == 0:
         print("ERROR: no path argument and dataset == 0")
-    elif len(sys.argv) >= 5:
-        pathname = sys.argv[4]
+    elif len(sys.argv) >= 6:
+        pathname = sys.argv[5]
 
     set_seed(42)
     samples = 100000
@@ -241,35 +247,36 @@ def main():
         data_train = load_json(pathname)
         dictionary, corpus = tokenize(data_train)
         model = train_lda(dictionary, corpus, topics)
-        with open(f"/cluster/scratch/knobelf/corpus2_{topics}", "w") as file:
+        os.makedirs(os.path.dirname(f"{data_folder}test/corpus2_{topics}"), exist_ok=True)
+        with open(f"{data_folder}test/corpus2_{topics}", "w") as file:
             json.dump(corpus, file, indent=2)
-        dictionary.save(f"/cluster/scratch/knobelf/dictionary2_{topics}")
-        model.save(f"/cluster/scratch/knobelf/ldamodel2_{topics}")
+        dictionary.save(f"{data_folder}test/dictionary2_{topics}")
+        model.save(f"{data_folder}test/ldamodel2_{topics}")
 
     # Create LDA Model for wiki_nt and gpt2_nt
     elif dataset == 1 or dataset == 2:
         data_train_1 = load_wikitext(samples)
-        data_train_2 = load_json("/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki_nt.json")
+        data_train_2 = load_json("{data_folder}dataset1-gpt2-wiki_nt.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 1:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/wiki_nt/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-wiki_nt-gpt2_nt/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/wiki_nt/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-wiki_nt-gpt2_nt/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/wiki_nt/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/wiki_nt/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_1.save(f"{data_folder}lda-wiki_nt-gpt2_nt/wiki_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
+            model_1.save(f"{data_folder}lda-wiki_nt-gpt2_nt/wiki_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
         else:
             model_2 = train_lda(dictionary_2, corpus_2, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/gpt2_nt/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-wiki_nt-gpt2_nt/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/gpt2_nt/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-wiki_nt-gpt2_nt/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/gpt2_nt/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"/cluster/scratch/knobelf/lda-wiki_nt-gpt2_nt/gpt2_nt/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_2.save(f"{data_folder}lda-wiki_nt-gpt2_nt/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
+            model_2.save(f"{data_folder}lda-wiki_nt-gpt2_nt/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
 
     # Create LDA Model for gpt2_nt and gpt2_nt
     elif dataset == 3 or dataset == 4:
@@ -280,21 +287,21 @@ def main():
         if dataset == 3:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_1.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/dictionary_{topics}")
+            model_1.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1/{combi}/{topics}/ldamodel_{topics}")
         else:
             model_2 = train_lda(dictionary_2, corpus_2, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_2.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/dictionary_{topics}")
+            model_2.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2/{combi}/{topics}/ldamodel_{topics}")
 
     # Create LDA Model for gpt2 and gpt2
     elif dataset == 5 or dataset == 6:
@@ -305,20 +312,20 @@ def main():
         if dataset == 5:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/corpus_{topics}", "w") as file:
+            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
+            with open(f"{data_folder}lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_1.save(f"{data_folder}lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/dictionary_{topics}")
+            model_1.save(f"{data_folder}lda-gpt2-gpt2/gpt2_1/{combi}/{topics}/ldamodel_{topics}")
         else:
             model_2 = train_lda(dictionary_2, corpus_2, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"/cluster/scratch/knobelf/lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_2.save(f"{data_folder}lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/dictionary_{topics}")
+            model_2.save(f"{data_folder}lda-gpt2-gpt2/gpt2_2/{combi}/{topics}/ldamodel_{topics}")
 
     # Create LDA Model for wiki_nt and arxiv
     elif dataset == 7 or dataset == 8:
@@ -329,20 +336,20 @@ def main():
         if dataset == 7:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/corpus_{topics}", "w") as file:
+            os.makedirs(os.path.dirname(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
+            with open(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_1.save(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/dictionary_{topics}")
+            model_1.save(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt/{combi}/{topics}/ldamodel_{topics}")
         else:
             model_2 = train_lda(dictionary_2, corpus_2, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"/cluster/scratch/knobelf/lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_2.save(f"{data_folder}lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/dictionary_{topics}")
+            model_2.save(f"{data_folder}lda-wiki_nt-arxiv/arxiv/{combi}/{topics}/ldamodel_{topics}")
 
     # Create LDA Model for arxiv and gpt2_nt
     elif dataset == 9 or dataset == 10:
@@ -353,20 +360,20 @@ def main():
         if dataset == 9:
             model_1 = train_lda(dictionary_1, corpus_1, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/gpt2_nt/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/gpt2_nt/{combi}/{topics}/corpus_{topics}", "w") as file:
+            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
+            with open(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/gpt2_nt/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/gpt2_nt/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_1.save(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
+            model_1.save(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
         else:
             model_2 = train_lda(dictionary_2, corpus_2, topics)
 
-            os.makedirs(os.path.dirname(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/arxiv/{combi}/{topics}/corpus_{topics}"),
+            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}"),
                         exist_ok=True)
-            with open(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/arxiv/{combi}/{topics}/corpus_{topics}", "w") as file:
+            with open(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
                 json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/arxiv/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"/cluster/scratch/knobelf/lda-gpt2_nt-arxiv/arxiv/{combi}/{topics}/ldamodel_{topics}")
+            dictionary_2.save(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/dictionary_{topics}")
+            model_2.save(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
 
 
 main()

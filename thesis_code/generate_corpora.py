@@ -70,7 +70,8 @@ def create_corpus(
             num_beams=1,                            # 1 deactivates beam_search
             temperature=1.0,                        # 1.0 deactivates temperature
             top_k=0,                                # 0 deactivates top_k sampling
-            top_p=1.0,                              # 1.0 deactivates top_p sampling
+            top_p=1.0,                              # 1.0 deactivates top_p (nucleus) sampling  using 0.9
+            typical_p=0.2,                          # 1.0 deactivates typical_p sampling        using 0.2
             repetition_penalty=1.0,                 # 1.0 deactivates repetition_penalty
             pad_token_id=pad_token_id,              # For open-end generation set to eos_token_id
             #bos_token_id=bos_token_id,
@@ -111,14 +112,14 @@ def main():
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model-gpt2-wiki-integrated",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki-integrated",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki-integrated.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki-integrated.json",
             load_size=load_size
         )
 
@@ -127,14 +128,14 @@ def main():
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model-gpt2-wiki",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2-wiki.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki.json",
             load_size=load_size
         )
 
@@ -143,14 +144,14 @@ def main():
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model-gpt2_nt-wiki_nt",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2_nt-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2_nt-wiki_nt.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2_nt-wiki_nt-typ_p.json",
             load_size=load_size
         )
     elif case == 4:
@@ -158,14 +159,14 @@ def main():
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="ma/data/model-gpt2_nt-wiki_nt",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2_nt-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/dataset2-gpt2_nt-wiki_nt.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2_nt-wiki_nt-typ_p.json",
             load_size=load_size
         )
     elif case == 5:
@@ -179,7 +180,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/dataset1-gpt2.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2.json",
             load_size=load_size
         )
     elif case == 6:
@@ -194,7 +195,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/dataset2-gpt2.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2.json",
             load_size=load_size
         )
     elif case == 7:
@@ -208,7 +209,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-large.json",
+            save_path="/cluster/work/cotterell/knobelf/data/data_gpt2-large.json",
             load_size=load_size
         )
     elif case == 8:
@@ -222,7 +223,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2-xl.json",
+            save_path="/cluster/work/cotterell/knobelf/data/data_gpt2-xl.json",
             load_size=load_size
         )
     elif case == 9:
@@ -236,7 +237,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPTNeoForCausalLM,
             pad_token_id=None,
-            save_path="/cluster/home/knobelf/ma/data/data_gpt2neo.json",
+            save_path="/cluster/work/cotterell/knobelf/data/data_gpt2neo.json",
             load_size=load_size
         )
 
