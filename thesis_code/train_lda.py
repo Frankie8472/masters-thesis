@@ -256,7 +256,7 @@ def main():
     # Create LDA Model for wiki_nt and gpt2_nt
     elif dataset == 1 or dataset == 2:
         data_train_1 = load_wikitext(samples)
-        data_train_2 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt.json")
+        data_train_2 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 1:
@@ -280,8 +280,8 @@ def main():
 
     # Create LDA Model for gpt2_nt and gpt2_nt
     elif dataset == 3 or dataset == 4:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2_nt-wiki_nt.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
+        data_train_2 = load_json(f"{data_folder}dataset2-gpt2-wiki_nt.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 3:
@@ -353,7 +353,7 @@ def main():
 
     # Create LDA Model for arxiv and gpt2_nt
     elif dataset == 9 or dataset == 10:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
@@ -377,7 +377,7 @@ def main():
 
     # Create LDA Model for arxiv and gpt2_nt-top_p
     elif dataset == 11 or dataset == 12:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt-top_p.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-top_p.json")
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
@@ -408,7 +408,7 @@ def main():
 
     # Create LDA Model for wikitext and gpt2_nt-top_p
     elif dataset == 13 or dataset == 14:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt-top_p.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-top_p.json")
         data_train_2 = load_wikitext(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
@@ -439,8 +439,8 @@ def main():
 
     # Create LDA Model for gpt2_nt-top_p and gpt2_nt-top_p
     elif dataset == 15 or dataset == 16:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt-top_p.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2_nt-wiki_nt-top_p.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-top_p.json")
+        data_train_2 = load_json(f"{data_folder}dataset2-gpt2-wiki_nt-top_p.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 15:
@@ -464,7 +464,7 @@ def main():
     ##
     # Create LDA Model for arxiv and gpt2_nt-typ_p
     elif dataset == 17 or dataset == 18:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt-typ_p.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-typ_p.json")
         data_train_2 = load_arxiv(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
@@ -497,7 +497,7 @@ def main():
 
     # Create LDA Model for wikitext and gpt2_nt-typ_p
     elif dataset == 19 or dataset == 20:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt-typ_p.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-typ_p.json")
         data_train_2 = load_wikitext(samples)
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
@@ -531,8 +531,8 @@ def main():
 
     # Create LDA Model for gpt2_nt-typ_p and gpt2_nt-typ_p
     elif dataset == 21 or dataset == 22:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2_nt-wiki_nt-typ_p.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2_nt-wiki_nt-typ_p.json")
+        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-typ_p.json")
+        data_train_2 = load_json(f"{data_folder}dataset2-gpt2-wiki_nt-typ_p.json")
         dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
 
         if dataset == 21:

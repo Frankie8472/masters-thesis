@@ -5,6 +5,7 @@ import sys
 from operator import itemgetter
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 from matplotlib.ticker import ScalarFormatter, MaxNLocator
 from gensim.models.ldamulticore import LdaMulticore
 from gensim.utils import SaveLoad
@@ -16,11 +17,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT
 
 
 def generate_bjobs():
-    topics = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100]
-    models = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]  # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    topics = [2]
+    models = [1,2,3,4, 19, 20]
     for model in models:
         for topic in topics:
-            for union in [0, 1]:
+            for union in [1]:
                 combi = "un" if union else "is"
                 if model == 1:
                     name = f"wiki_nt-gpt2_nt-{combi}-{topic}.txt"
@@ -298,7 +299,7 @@ def calc_score_var():
                             pbar.update(1)
 
 
-def generate_plot():
+def generate_score_plot():
     for case in [1, 2, 3, 4]:
         if case == 1:
             score_file_path = "./data/score_by_top_topic.json"
@@ -312,14 +313,17 @@ def generate_plot():
             mode = 'un'
         elif case == 3:
             score_file_path = "./data/score_by_topic_probability_values.json"
-            title = "'Score by Topic Probability'-Topic Graph for LDA Models (intersected dicts)"
+            title = "'Score by Topic Prob.'-Topic Graph for LDA Models (intersected dicts)"
             y_label = "Score by Topic Probability (lower is better)"
             mode = 'is'
-        else:
+        elif case == 4:
             score_file_path = "./data/score_by_topic_probability_values.json"
-            title = "'Score by Topic Probability'-Topic Graph for LDA Models (unionized dicts)"
+            title = "'Score by Topic Prob.'-Topic Graph for LDA Models (unionized dicts)"
             y_label = "Score by Topic Probability (lower is better)"
             mode = 'un'
+        else:
+            print("ERROR")
+            return
         if os.path.isfile(score_file_path):
             with open(score_file_path, 'r') as file:
                 score_values = json.load(file)
@@ -333,21 +337,83 @@ def generate_plot():
         for idx, name in enumerate(names):
             if mode not in name:
                 continue
-            axes.plot(topics, values[idx], label=name)
-        axes.legend(bbox_to_anchor=(1, 1))
+            axes.plot(topics, values[idx], label="-".join(name.split('-')[1:]))
         plt.ylim(0, 1)
-        axes.set_title(title)
+        axes.set_title(title, fontsize=11)
         axes.set_xscale('log')
         axes.set_xlabel('Number of Topics')
         axes.set_ylabel(y_label)
         axes.set_xticks(topics)
         axes.get_xaxis().set_major_formatter(ScalarFormatter())
+
+        font = FontProperties()
+        font.set_size('xx-small')
+        axes.legend(bbox_to_anchor=(1.04, 1), loc="upper left", prop=font)
+        fig.tight_layout()
         plt.savefig(f"{score_file_path[:-5]}_{mode}.png", dpi=300)
         plt.close('all')
 
 
+def generate_var_plot():
+    for case in [1, 2, 3, 4]:
+        if case == 1:
+            score_file_path = "./data/score_by_top_topic_var.json"
+            title = "Variance TT-Score Graph for LDA Models (intersected dicts)"
+            y_label = "Score by Top Topic (lower is better)"
+            mode = 'is'
+        elif case == 2:
+            score_file_path = "./data/score_by_top_topic_var.json"
+            title = "Variance TT-Score Graph for LDA Models (unionized dicts)"
+            y_label = "Score by Top Topic (lower is better)"
+            mode = 'un'
+        elif case == 3:
+            score_file_path = "./data/score_by_topic_probability_values_var.json"
+            title = "Variance TP-Score Graph for LDA Models (intersected dicts)"
+            y_label = "Score by Topic Probability (lower is better)"
+            mode = 'is'
+        elif case == 4:
+            score_file_path = "./data/score_by_topic_probability_values_var.json"
+            title = "Variance TP-Score Graph for LDA Models (unionized dicts)"
+            y_label = "Score by Topic Probability (lower is better)"
+            mode = 'un'
+        else:
+            print("ERROR")
+            return
+        if os.path.isfile(score_file_path):
+            with open(score_file_path, 'r') as file:
+                score_values = json.load(file)
+
+        names = list(score_values.keys())
+        values = list(score_values.values())
+
+        topics = [5, 10]
+
+        plt.clf()
+        fig, axes = plt.subplots()
+        for idx, name in enumerate(names):
+            if mode not in name:
+                continue
+            for i in range(5):
+                print(values[idx][i])
+                axes.plot(topics, values[idx][i], label="-".join(name.split('-')[1:])+f"{i}")
+        plt.ylim(0, 1)
+        axes.set_title(title, fontsize=11)
+        axes.set_xscale('log')
+        axes.set_xlabel('Number of Topics')
+        axes.set_ylabel(y_label)
+        axes.set_xticks(topics)
+        axes.get_xaxis().set_major_formatter(ScalarFormatter())
+
+        font = FontProperties()
+        font.set_size('xx-small')
+        axes.legend(bbox_to_anchor=(1.04, 1), loc="upper left", prop=font)
+        fig.tight_layout()
+        plt.savefig(f"{score_file_path[:-5]}_{mode}_var.png", dpi=300)
+        plt.close('all')
+
+
 def main():
-    calc_score_var()
+    generate_bjobs()
 
 
 main()

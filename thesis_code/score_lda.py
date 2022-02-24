@@ -171,23 +171,27 @@ def calc_score_var():
     length = len(topics) * len(modes) * len(model_pairs) * 25
     with tqdm(total=length) as pbar:
         for model_pair in model_pairs:
+            path1 = model_pair[0]
+            path2 = model_pair[1]
+
             for mode in modes:
                 for idx, topic in enumerate(topics):
+
                     for i in [1, 2, 3, 4, 5]:
+                        path_ldamodel_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{i}/{mode}/{topic}/ldamodel_{topic}"
+                        path_corpus_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{i}/{mode}/{topic}/corpus_{topic}"
+                        # Load pretrained models from disk.
+                        with open(path_corpus_1, 'r') as file:
+                            corpus_1 = json.load(file)
+                        ldamodel_1 = LdaMulticore.load(path_ldamodel_1)
+
                         for j in [1, 2, 3, 4, 5]:
-                            path1 = model_pair[0]
-                            path2 = model_pair[1]
-                            path_ldamodel_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{i}/{mode}/{topic}/ldamodel_{topic}"
                             path_ldamodel_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{j}/{mode}/{topic}/ldamodel_{topic}"
-                            path_corpus_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{i}/{mode}/{topic}/corpus_{topic}"
                             path_corpus_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{j}/{mode}/{topic}/corpus_{topic}"
 
                             # Load pretrained models from disk.
-                            with open(path_corpus_1, 'r') as file:
-                                corpus_1 = json.load(file)
                             with open(path_corpus_2, 'r') as file:
                                 corpus_2 = json.load(file)
-                            ldamodel_1 = LdaMulticore.load(path_ldamodel_1)
                             ldamodel_2 = LdaMulticore.load(path_ldamodel_2)
 
                             # Compare models with scores_by_topic_probability and save
@@ -290,7 +294,7 @@ def calc_score_new():
                     # Compare models with scores_by_topic_probability and save
                     diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/work/cotterell/knobelf/score_by_topic_probability_values.json"
+                    score_path = "/cluster/work/cotterell/knobelf/data/score_by_topic_probability_values.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
@@ -311,7 +315,7 @@ def calc_score_new():
                     # Compare models with score_by_top_topic and save
                     diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/work/cotterell/knobelf/score_by_top_topic.json"
+                    score_path = "/cluster/work/cotterell/knobelf/data/score_by_top_topic.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
