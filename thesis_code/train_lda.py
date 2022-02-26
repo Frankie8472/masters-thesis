@@ -236,8 +236,10 @@ def main():
         extra_folder = "/" + sys.argv[4]
 
     seed = seed2 = 42
-    if iteration is not None and iteration > 5:
+    if iteration is not None:
         seed2 = 42 + 7**iteration
+        if iteration < 6:
+            seed = seed2
 
     print(f"SEED: {seed}")
     print(f"SEED2: {seed2}")
