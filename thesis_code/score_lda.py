@@ -1,5 +1,7 @@
 import json
 import os
+import sys
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -51,8 +53,8 @@ def calc_score():
     modes = ["intersection", "union"]
     model_pairs = [
         (
-            "lda-wiki_nt-gpt2_nt/wiki_nt",
-            "lda-wiki_nt-gpt2_nt/gpt2_nt"
+            "lda-gpt2_nt-wiki_nt/wiki_nt",
+            "lda-gpt2_nt-wiki_nt/gpt2_nt"
         ),
         (
             "lda-gpt2_nt-gpt2_nt/gpt2_nt_1",
@@ -69,6 +71,30 @@ def calc_score():
         (
             "lda-gpt2-gpt2/gpt2_1",
             "lda-gpt2-gpt2/gpt2_2",
+        ),
+        (
+            "lda-gpt2_nt-wiki_nt-top_p/wiki_nt",
+            "lda-gpt2_nt-wiki_nt-top_p/gpt2_nt"
+        ),
+        (
+            "lda-gpt2_nt-wiki_nt-typ_p/wiki_nt",
+            "lda-gpt2_nt-wiki_nt-typ_p/gpt2_nt"
+        ),
+        (
+            "lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_1",
+            "lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_2"
+        ),
+        (
+            "lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_1",
+            "lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_2"
+        ),
+        (
+            "lda-gpt2_nt-arxiv-top_p/gpt2_nt",
+            "lda-gpt2_nt-arxiv-top_p/arxiv"
+        ),
+        (
+            "lda-gpt2_nt-arxiv-typ_p/gpt2_nt",
+            "lda-gpt2_nt-arxiv-typ_p/arxiv"
         )
     ]
     length = len(topics) * len(modes) * len(model_pairs)
@@ -80,8 +106,8 @@ def calc_score():
                     path2 = model_pair[1]
                     path_ldamodel_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{mode}/{topic}/ldamodel_{topic}"
                     path_ldamodel_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{mode}/{topic}/ldamodel_{topic}"
-                    path_dictionary_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{mode}/{topic}/dictionary_{topic}"
-                    path_dictionary_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{mode}/{topic}/dictionary_{topic}"
+                    # path_dictionary_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{mode}/{topic}/dictionary_{topic}"
+                    # path_dictionary_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{mode}/{topic}/dictionary_{topic}"
                     path_corpus_1 = f"/cluster/work/cotterell/knobelf/data/{path1}/{mode}/{topic}/corpus_{topic}"
                     path_corpus_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{mode}/{topic}/corpus_{topic}"
 
@@ -90,8 +116,8 @@ def calc_score():
                         corpus_1 = json.load(file)
                     with open(path_corpus_2, 'r') as file:
                         corpus_2 = json.load(file)
-                    dictionary_1 = SaveLoad.load(path_dictionary_1)
-                    dictionary_2 = SaveLoad.load(path_dictionary_2)
+                    # dictionary_1 = SaveLoad.load(path_dictionary_1)
+                    # dictionary_2 = SaveLoad.load(path_dictionary_2)
                     ldamodel_1 = LdaMulticore.load(path_ldamodel_1)
                     ldamodel_2 = LdaMulticore.load(path_ldamodel_2)
 
@@ -101,7 +127,7 @@ def calc_score():
                     # Compare models with scores_by_topic_probability and save
                     diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/work/cotterell/knobelf/score_by_topic_probability_values.json"
+                    score_path = "/cluster/work/cotterell/knobelf/data/score_by_topic_probability_values.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
@@ -122,7 +148,7 @@ def calc_score():
                     # Compare models with score_by_top_topic and save
                     diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                    score_path = "/cluster/work/cotterell/knobelf/score_by_top_topic.json"
+                    score_path = "/cluster/work/cotterell/knobelf/data/score_by_top_topic.json"
 
                     if os.path.isfile(score_path):
                         with open(score_path, 'r') as file:
@@ -155,20 +181,20 @@ def calc_score():
                     pbar.update(1)
 
 
-def calc_score_var():
-    topics = np.asarray([5, 10])
+def calc_score_var(state=0):
+    topics = np.asarray([2, 5, 10])
     modes = ["intersection", "union"]
     model_pairs = [
         (
-            "lda-wiki_nt-gpt2_nt/wiki_nt",
-            "lda-wiki_nt-gpt2_nt/gpt2_nt"
+            "lda-gpt2_nt-wiki_nt/wiki_nt",
+            "lda-gpt2_nt-wiki_nt/gpt2_nt"
         ),
         (
             "lda-gpt2_nt-arxiv/gpt2_nt",
             "lda-gpt2_nt-arxiv/arxiv"
         )
     ]
-    length = len(topics) * len(modes) * len(model_pairs) * 25
+    length = len(topics) * len(modes) * len(model_pairs) * 5
     with tqdm(total=length) as pbar:
         for model_pair in model_pairs:
             path1 = model_pair[0]
@@ -185,7 +211,7 @@ def calc_score_var():
                             corpus_1 = json.load(file)
                         ldamodel_1 = LdaMulticore.load(path_ldamodel_1)
 
-                        for j in [1, 2, 3, 4, 5]:
+                        for j in [i]:
                             path_ldamodel_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{j}/{mode}/{topic}/ldamodel_{topic}"
                             path_corpus_2 = f"/cluster/work/cotterell/knobelf/data/{path2}/{j}/{mode}/{topic}/corpus_{topic}"
 
@@ -194,78 +220,68 @@ def calc_score_var():
                                 corpus_2 = json.load(file)
                             ldamodel_2 = LdaMulticore.load(path_ldamodel_2)
 
-                            # Compare models with scores_by_topic_probability and save
-                            diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
+                            if state == 0:
+                                # Compare models with scores_by_topic_probability and save
+                                diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                            score_path = "/cluster/work/cotterell/knobelf/data/score_by_topic_probability_values_var.json"
+                                score_path = "/cluster/work/cotterell/knobelf/data/score_by_topic_probability_values_var_diff.json"
 
-                            if os.path.isfile(score_path):
-                                with open(score_path, 'r') as file:
-                                    score_values = json.load(file)
-                            else:
-                                score_values = dict()
+                                if os.path.isfile(score_path):
+                                    with open(score_path, 'r') as file:
+                                        score_values = json.load(file)
+                                else:
+                                    score_values = dict()
 
-                            short_mode = "is" if mode == "intersection" else "un"
-                            key = f"{path1.split('/')[0]}-{short_mode}"
-                            if key not in score_values.keys():
-                                score_values[key] = np.ones((25, topics.shape[0])).tolist()
+                                short_mode = "is" if mode == "intersection" else "un"
+                                key = f"{path1.split('/')[0]}-{short_mode}"
+                                if key not in score_values.keys():
+                                    score_values[key] = np.ones((5, topics.shape[0])).tolist()
 
-                            score_values[key][(j-1)+(i-1)*5][idx] = diff_score
+                                score_values[key][(j-1)][idx] = diff_score
 
-                            with open(score_path, 'w') as file:
-                                json.dump(score_values, file)
+                                with open(score_path, 'w') as file:
+                                    json.dump(score_values, file)
+                            elif state == 1:
+                                # Compare models with score_by_top_topic and save
+                                diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
 
-                            # Compare models with score_by_top_topic and save
-                            diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
+                                score_path = "/cluster/work/cotterell/knobelf/data/score_by_top_topic_var_diff.json"
 
-                            score_path = "/cluster/work/cotterell/knobelf/data/score_by_top_topic_var.json"
+                                if os.path.isfile(score_path):
+                                    with open(score_path, 'r') as file:
+                                        score_values = json.load(file)
+                                else:
+                                    score_values = dict()
 
-                            if os.path.isfile(score_path):
-                                with open(score_path, 'r') as file:
-                                    score_values = json.load(file)
-                            else:
-                                score_values = dict()
+                                short_mode = "is" if mode == "intersection" else "un"
+                                key = f"{path1.split('/')[0]}-{short_mode}"
+                                if key not in score_values.keys():
+                                    score_values[key] = np.ones((5, topics.shape[0])).tolist()
 
-                            short_mode = "is" if mode == "intersection" else "un"
-                            key = f"{path1.split('/')[0]}-{short_mode}"
-                            if key not in score_values.keys():
-                                score_values[key] = np.ones((25, topics.shape[0])).tolist()
+                                score_values[key][(j-1)][idx] = diff_score
 
-                            score_values[key][(j-1)+(i-1)*5][idx] = diff_score
-
-                            with open(score_path, 'w') as file:
-                                json.dump(score_values, file)
+                                with open(score_path, 'w') as file:
+                                    json.dump(score_values, file)
 
                             pbar.update(1)
 
 
 def calc_score_new():
-    topics = np.asarray([2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100])
-    modes = ["intersection", "union"]
+    topics = np.asarray([2])
+    modes = ["union"]
     model_pairs = [
         (
-            "lda-wiki_nt-gpt2_nt-top_p/wiki_nt",
-            "lda-wiki_nt-gpt2_nt-top_p/gpt2_nt"
+            "lda-gpt2_nt-wiki_nt/wiki_nt",
+            "lda-gpt2_nt-wiki_nt/gpt2_nt"
+        ),
+
+        (
+            "lda-gpt2_nt-gpt2_nt/gpt2_nt_1",
+            "lda-gpt2_nt-gpt2_nt/gpt2_nt_2"
         ),
         (
-            "lda-wiki_nt-gpt2_nt-typ_p/wiki_nt",
-            "lda-wiki_nt-gpt2_nt-typ_p/gpt2_nt"
-        ),
-        (
-            "lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_1",
-            "lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_2"
-        ),
-        (
-            "lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_1",
-            "lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_2"
-        ),
-        (
-            "lda-gpt2_nt-arxiv-top_p/gpt2_nt",
-            "lda-gpt2_nt-arxiv-top_p/arxiv"
-        ),
-        (
-            "lda-gpt2_nt-arxiv-typ_p/gpt2_nt",
-            "lda-gpt2_nt-arxiv-typ_p/arxiv"
+            "lda-gpt2_nt-wiki_nt-typ_p/wiki_nt",
+            "lda-gpt2_nt-wiki_nt-typ_p/gpt2_nt"
         )
     ]
     length = len(topics) * len(modes) * len(model_pairs)
@@ -349,7 +365,7 @@ def calc_score_new():
 
 
 def main():
-    calc_score_new()
+    calc_score_var(int(sys.argv[1]))
 
 
 main()

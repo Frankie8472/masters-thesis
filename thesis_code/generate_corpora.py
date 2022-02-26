@@ -144,14 +144,14 @@ def main():
         print(f"Entering case: {case}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2_nt-wiki_nt",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2_nt-wiki_nt-typ_p.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt-typ_p.json",
             load_size=load_size
         )
     elif case == 4:
@@ -159,14 +159,14 @@ def main():
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2_nt-wiki_nt",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2_nt-wiki_nt-typ_p.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt-typ_p.json",
             load_size=load_size
         )
     elif case == 5:

@@ -17,61 +17,67 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT
 
 
 def generate_bjobs():
-    topics = [2]
-    models = [1,2,3,4, 19, 20]
+    topics = [2, 5, 10]
+    models = [1, 2, 7, 8]
+    samples = [6, 7, 8]     # [1, 2, 3, 4, 5]
     for model in models:
         for topic in topics:
-            for union in [1]:
-                combi = "un" if union else "is"
-                if model == 1:
-                    name = f"wiki_nt-gpt2_nt-{combi}-{topic}.txt"
-                elif model == 2:
-                    name = f"gpt2_nt-wiki_nt-{combi}-{topic}.txt"
-                elif model == 3:
-                    name = f"gpt2_nt_1-gpt2_nt_2-{combi}-{topic}.txt"
-                elif model == 4:
-                    name = f"gpt2_nt_2-gpt2_nt_1-{combi}-{topic}.txt"
-                elif model == 5:
-                    name = f"gpt2_1-gpt2_2-{combi}-{topic}.txt"
-                elif model == 6:
-                    name = f"gpt2_2-gpt2_1-{combi}-{topic}.txt"
-                elif model == 7:
-                    name = f"wiki_nt-arxiv-{combi}-{topic}.txt"
-                elif model == 8:
-                    name = f"arxiv-wiki_nt-{combi}-{topic}.txt"
-                elif model == 9:
-                    name = f"gpt2_nt-arxiv-{combi}-{topic}.txt"
-                elif model == 10:
-                    name = f"arxiv-gpt2_nt-{combi}-{topic}.txt"
-                elif model == 11:
-                    name = f"gpt2_nt-arxiv-top_p-{combi}-{topic}.txt"
-                elif model == 12:
-                    name = f"arxiv-gpt2_nt-top_p-{combi}-{topic}.txt"
-                elif model == 13:
-                    name = f"gpt2_nt-wiki_top_p-{combi}-{topic}.txt"
-                elif model == 14:
-                    name = f"wiki-gpt2_nt-top_p-{combi}-{topic}.txt"
-                elif model == 15:
-                    name = f"gpt2_nt_1-gpt2_nt_2-top_p-{combi}-{topic}.txt"
-                elif model == 16:
-                    name = f"gpt2_np_2-gpt2_nt_1-top_p-{combi}-{topic}.txt"
-                elif model == 17:
-                    name = f"gpt2_nt-arxiv-typ_p-{combi}-{topic}.txt"
-                elif model == 18:
-                    name = f"arxiv-gpt2_nt-typ_p-{combi}-{topic}.txt"
-                elif model == 19:
-                    name = f"gpt2_nt-wiki_typ_p-{combi}-{topic}.txt"
-                elif model == 20:
-                    name = f"wiki-gpt2_nt-typ_p-{combi}-{topic}.txt"
-                elif model == 21:
-                    name = f"gpt2_nt_1-gpt2_nt_2-typ_p-{combi}-{topic}.txt"
-                elif model == 22:
-                    name = f"gpt2_nt_2-gpt2_nt_1-typ_p-{combi}-{topic}.txt"
-                else:
-                    print("ERROR")
-                    return
-                print(
-                    f"bsub -N -W 24:00 -n 48 -R \"rusage[mem=2666]\" -o logs/log-{name} \"python /cluster/work/cotterell/knobelf/train_lda.py {union} {model} {topic}\"")
+            for union in [0, 1]:
+                for i in samples:
+                    combi = "un" if union else "is"
+                    if model == 1:
+                        name = f"wiki_nt-gpt2_nt-{combi}-{topic}.txt"
+                    elif model == 2:
+                        name = f"gpt2_nt-wiki_nt-{combi}-{topic}.txt"
+                    elif model == 3:
+                        name = f"gpt2_nt_1-gpt2_nt_2-{combi}-{topic}.txt"
+                    elif model == 4:
+                        name = f"gpt2_nt_2-gpt2_nt_1-{combi}-{topic}.txt"
+                    elif model == 5:
+                        name = f"gpt2_1-gpt2_2-{combi}-{topic}.txt"
+                    elif model == 6:
+                        name = f"gpt2_2-gpt2_1-{combi}-{topic}.txt"
+                    elif model == 7:
+                        name = f"wiki_nt-arxiv-{combi}-{topic}.txt"
+                    elif model == 8:
+                        name = f"arxiv-wiki_nt-{combi}-{topic}.txt"
+                    elif model == 9:
+                        name = f"gpt2_nt-arxiv-{combi}-{topic}.txt"
+                    elif model == 10:
+                        name = f"arxiv-gpt2_nt-{combi}-{topic}.txt"
+                    elif model == 11:
+                        name = f"gpt2_nt-arxiv-top_p-{combi}-{topic}.txt"
+                    elif model == 12:
+                        name = f"arxiv-gpt2_nt-top_p-{combi}-{topic}.txt"
+                    elif model == 13:
+                        name = f"gpt2_nt-wiki_top_p-{combi}-{topic}.txt"
+                    elif model == 14:
+                        name = f"wiki-gpt2_nt-top_p-{combi}-{topic}.txt"
+                    elif model == 15:
+                        name = f"gpt2_nt_1-gpt2_nt_2-top_p-{combi}-{topic}.txt"
+                    elif model == 16:
+                        name = f"gpt2_np_2-gpt2_nt_1-top_p-{combi}-{topic}.txt"
+                    elif model == 17:
+                        name = f"gpt2_nt-arxiv-typ_p-{combi}-{topic}.txt"
+                    elif model == 18:
+                        name = f"arxiv-gpt2_nt-typ_p-{combi}-{topic}.txt"
+                    elif model == 19:
+                        name = f"gpt2_nt-wiki_typ_p-{combi}-{topic}.txt"
+                    elif model == 20:
+                        name = f"wiki-gpt2_nt-typ_p-{combi}-{topic}.txt"
+                    elif model == 21:
+                        name = f"gpt2_nt_1-gpt2_nt_2-typ_p-{combi}-{topic}.txt"
+                    elif model == 22:
+                        name = f"gpt2_nt_2-gpt2_nt_1-typ_p-{combi}-{topic}.txt"
+                    else:
+                        print("ERROR")
+                        return
+                    if len(samples) > 1:
+                        name = f"{name[:-4]}-{i}{name[-4:]}"
+                        print(f"bsub -N -W 24:00 -n 48 -R \"rusage[mem=2666]\" -o logs/log-{name} \"python /cluster/work/cotterell/knobelf/train_lda.py {union} {model} {topic} {i}\"")
+
+                    else:
+                        print(f"bsub -N -W 24:00 -n 48 -R \"rusage[mem=2666]\" -o logs/log-{name} \"python /cluster/work/cotterell/knobelf/train_lda.py {union} {model} {topic}\"")
 
 
 def score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2, distance='jensen_shannon'):
@@ -115,8 +121,8 @@ def calc_score():
     modes = ["intersection", "union"]
     model_pairs = [
         (
-            "lda-wiki_nt-gpt2_nt/wiki_nt",
-            "lda-wiki_nt-gpt2_nt/gpt2_nt"
+            "lda-gpt2_nt-wiki_nt/wiki_nt",
+            "lda-gpt2_nt-wiki_nt/gpt2_nt"
         ),
         (
             "lda-gpt2_nt-gpt2_nt/gpt2_nt_1",
@@ -224,8 +230,8 @@ def calc_score_var():
     modes = ["intersection", "union"]
     model_pairs = [
         (
-            "lda-wiki_nt-gpt2_nt/wiki_nt",
-            "lda-wiki_nt-gpt2_nt/gpt2_nt"
+            "lda-gpt2_nt-wiki_nt/wiki_nt",
+            "lda-gpt2_nt-wiki_nt/gpt2_nt"
         ),
         (
             "lda-gpt2_nt-arxiv/gpt2_nt",
@@ -393,7 +399,7 @@ def generate_var_plot():
         for idx, name in enumerate(names):
             if mode not in name:
                 continue
-            for i in range(5):
+            for i in range(25):
                 print(values[idx][i])
                 axes.plot(topics, values[idx][i], label="-".join(name.split('-')[1:])+f"{i}")
         plt.ylim(0, 1)
