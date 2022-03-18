@@ -1,25 +1,17 @@
-import gc
 import json
 import os
-import sys
-from operator import itemgetter
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
-from matplotlib.ticker import ScalarFormatter, MaxNLocator
-from gensim.models.ldamulticore import LdaMulticore
-from gensim.utils import SaveLoad
-import torch
-from tqdm.auto import tqdm
-import itertools
-from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT2LMHeadModel, GPTNeoForCausalLM, \
-    set_seed
+from matplotlib.ticker import ScalarFormatter
+from matplotlib.pyplot import cm
+from transformers import set_seed
 
 
 def generate_bjobs():
-    topics = [2, 5, 10]
-    models = [1, 2, 7, 8]
-    samples = [6, 7, 8]     # [1, 2, 3, 4, 5]
+    topics = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100]
+    models = [23, 24, 25, 26]   #[1, 2, 7, 8]
+    samples = [1]     # [1, 2, 3, 4, 5]
     for model in models:
         for topic in topics:
             for union in [0, 1]:
@@ -69,6 +61,14 @@ def generate_bjobs():
                         name = f"gpt2_nt_1-gpt2_nt_2-typ_p-{combi}-{topic}.txt"
                     elif model == 22:
                         name = f"gpt2_nt_2-gpt2_nt_1-typ_p-{combi}-{topic}.txt"
+                    elif model == 23:
+                        name = f"gpt2_nt-gpt2-{combi}-{topic}.txt"
+                    elif model == 24:
+                        name = f"gpt2-gpt2_nt-{combi}-{topic}.txt"
+                    elif model == 25:
+                        name = f"gpt2-wiki_nt-{combi}-{topic}.txt"
+                    elif model == 26:
+                        name = f"wiki_nt-gpt2-{combi}-{topic}.txt"
                     else:
                         print("ERROR")
                         return
@@ -80,252 +80,31 @@ def generate_bjobs():
                         print(f"bsub -N -W 24:00 -n 48 -R \"rusage[mem=2666]\" -o logs/log-{name} \"python /cluster/work/cotterell/knobelf/train_lda.py {union} {model} {topic}\"")
 
 
-def score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2, distance='jensen_shannon'):
-    mdiff1, annotation1 = ldamodel_1.diff(ldamodel_2, distance=distance, num_words=1000000000)
-    mdiff2, annotation2 = ldamodel_2.diff(ldamodel_1, distance=distance, num_words=1000000000)
-    min1 = np.amin(mdiff1, axis=1)
-    min2 = np.amin(mdiff2, axis=1)
-    topic_corpus_prob_1 = np.zeros(ldamodel_1.num_topics)
-    topic_corpus_prob_2 = np.zeros(ldamodel_2.num_topics)
-    probas_1 = ldamodel_1.get_document_topics(list(itertools.chain.from_iterable(corpus_1)), minimum_probability=0.0)
-    probas_2 = ldamodel_2.get_document_topics(list(itertools.chain.from_iterable(corpus_2)), minimum_probability=0.0)
-    for key, val in probas_1:
-        topic_corpus_prob_1[key] = val
-    for key, val in probas_2:
-        topic_corpus_prob_2[key] = val
-    return (np.sum(topic_corpus_prob_1 * min1) + np.sum(topic_corpus_prob_2 * min2)) / 2
-
-
-def score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2, distance='jensen_shannon'):
-    mdiff1, annotation1 = ldamodel_1.diff(ldamodel_2, distance=distance, num_words=1000000000)
-    mdiff2, annotation2 = ldamodel_2.diff(ldamodel_1, distance=distance, num_words=1000000000)
-    min1 = np.amin(mdiff1, axis=1)
-    min2 = np.amin(mdiff2, axis=1)
-
-    cnt1 = np.zeros(ldamodel_1.num_topics)
-    for doc in corpus_1:
-        topic_prob_list = ldamodel_1.get_document_topics(doc, minimum_probability=0.0)
-        topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
-        cnt1[topic_prob_tupel[0]] += 1
-    cnt2 = np.zeros(ldamodel_1.num_topics)
-    for doc in corpus_2:
-        topic_prob_list = ldamodel_2.get_document_topics(doc, minimum_probability=0.0)
-        topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
-        cnt2[topic_prob_tupel[0]] += 1
-
-    return (np.sum(cnt1 * min1) / np.sum(cnt1) + np.sum(cnt2 * min2) / np.sum(cnt2)) / 2
-
-
-def calc_score():
-    topics = np.asarray([2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100])
-    modes = ["intersection", "union"]
-    model_pairs = [
-        (
-            "lda-gpt2_nt-wiki_nt/wiki_nt",
-            "lda-gpt2_nt-wiki_nt/gpt2_nt"
-        ),
-        (
-            "lda-gpt2_nt-gpt2_nt/gpt2_nt_1",
-            "lda-gpt2_nt-gpt2_nt/gpt2_nt_2"
-        ),
-        (
-            "lda-gpt2_nt-arxiv/gpt2_nt",
-            "lda-gpt2_nt-arxiv/arxiv"
-        ),
-        (
-            "lda-wiki_nt-arxiv/wiki_nt",
-            "lda-wiki_nt-arxiv/arxiv"
-        ),
-        (
-            "lda-gpt2-gpt2/gpt2_1",
-            "lda-gpt2-gpt2/gpt2_2",
-        )
-    ]
-    length = len(topics) * len(modes) * len(model_pairs)
-    with tqdm(total=length) as pbar:
-        for model_pair in model_pairs:
-            for mode in modes:
-                for idx, topic in enumerate(topics):
-                    path1 = model_pair[0]
-                    path2 = model_pair[1]
-                    path_ldamodel_1 = f"./data/{path1}/{mode}/{topic}/ldamodel_{topic}"
-                    path_ldamodel_2 = f"./data/{path2}/{mode}/{topic}/ldamodel_{topic}"
-                    path_dictionary_1 = f"./data/{path1}/{mode}/{topic}/dictionary_{topic}"
-                    path_dictionary_2 = f"./data/{path2}/{mode}/{topic}/dictionary_{topic}"
-                    path_corpus_1 = f"./data/{path1}/{mode}/{topic}/corpus_{topic}"
-                    path_corpus_2 = f"./data/{path2}/{mode}/{topic}/corpus_{topic}"
-
-                    # Load pretrained models from disk.
-                    with open(path_corpus_1, 'r') as file:
-                        corpus_1 = json.load(file)
-                    with open(path_corpus_2, 'r') as file:
-                        corpus_2 = json.load(file)
-                    dictionary_1 = SaveLoad.load(path_dictionary_1)
-                    dictionary_2 = SaveLoad.load(path_dictionary_2)
-                    ldamodel_1 = LdaMulticore.load(path_ldamodel_1)
-                    ldamodel_2 = LdaMulticore.load(path_ldamodel_2)
-
-                    distance = 'jensen_shannon'
-                    words = 100000000
-
-                    # Compare models with scores_by_topic_probability and save
-                    diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
-
-                    score_path = "./data/score_by_topic_probability_values.json"
-
-                    if os.path.isfile(score_path):
-                        with open(score_path, 'r') as file:
-                            score_values = json.load(file)
-                    else:
-                        score_values = dict()
-
-                    short_mode = "is" if mode == "intersection" else "un"
-                    key = f"{path1.split('/')[0]}-{short_mode}"
-                    if key not in score_values.keys():
-                        score_values[key] = np.ones(topics.shape).tolist()
-
-                    score_values[key][idx] = diff_score
-
-                    with open(score_path, 'w') as file:
-                        json.dump(score_values, file)
-
-                    # Compare models with score_by_top_topic and save
-                    diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
-
-                    score_path = "./data/score_by_top_topic.json"
-
-                    if os.path.isfile(score_path):
-                        with open(score_path, 'r') as file:
-                            score_values = json.load(file)
-                    else:
-                        score_values = dict()
-
-                    short_mode = "is" if mode == "intersection" else "un"
-                    key = f"{path1.split('/')[0]}-{short_mode}"
-                    if key not in score_values.keys():
-                        score_values[key] = np.ones(topics.shape).tolist()
-
-                    score_values[key][idx] = diff_score
-
-                    with open(score_path, 'w') as file:
-                        json.dump(score_values, file)
-
-                    # Calculate Difference Graph and save it
-                    mdiff, annotation = ldamodel_1.diff(ldamodel_2, distance=distance, num_words=words)
-
-                    fig, ax = plt.subplots(figsize=(18, 14))
-                    data = ax.imshow(mdiff, cmap='RdBu_r', vmin=0.0, vmax=1.0, origin='lower')
-                    for axis in [ax.xaxis, ax.yaxis]:
-                        axis.set_major_locator(MaxNLocator(integer=True))
-                    plt.title(
-                        f"Topic difference ({path1.split('/')[1]} - {path2.split('/')[1]} - {mode})[{distance} distance] for {topic} topics")
-                    plt.colorbar(data)
-                    plt.savefig(f"./data/{path1.split('/')[0]}/diff_{short_mode}_{topic}.png", dpi=300)
-                    plt.close('all')
-                    pbar.update(1)
-
-
-def calc_score_var():
-    topics = np.asarray([5, 10])
-    modes = ["intersection", "union"]
-    model_pairs = [
-        (
-            "lda-gpt2_nt-wiki_nt/wiki_nt",
-            "lda-gpt2_nt-wiki_nt/gpt2_nt"
-        ),
-        (
-            "lda-gpt2_nt-arxiv/gpt2_nt",
-            "lda-gpt2_nt-arxiv/arxiv"
-        )
-    ]
-    length = len(topics) * len(modes) * len(model_pairs) * 25
-    with tqdm(total=length) as pbar:
-        for model_pair in model_pairs:
-            for mode in modes:
-                for idx, topic in enumerate(topics):
-                    for i in [1, 2, 3, 4, 5]:
-                        for j in [1, 2, 3, 4, 5]:
-                            path1 = model_pair[0]
-                            path2 = model_pair[1]
-                            path_ldamodel_1 = f"./data/{path1}/{i}/{mode}/{topic}/ldamodel_{topic}"
-                            path_ldamodel_2 = f"./data/{path2}/{j}/{mode}/{topic}/ldamodel_{topic}"
-                            path_corpus_1 = f"./data/{path1}/{i}/{mode}/{topic}/corpus_{topic}"
-                            path_corpus_2 = f"./data/{path2}/{j}/{mode}/{topic}/corpus_{topic}"
-
-                            # Load pretrained models from disk.
-                            with open(path_corpus_1, 'r') as file:
-                                corpus_1 = json.load(file)
-                            with open(path_corpus_2, 'r') as file:
-                                corpus_2 = json.load(file)
-                            ldamodel_1 = LdaMulticore.load(path_ldamodel_1)
-                            ldamodel_2 = LdaMulticore.load(path_ldamodel_2)
-
-                            # Compare models with scores_by_topic_probability and save
-                            diff_score = score_by_topic_probability(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
-
-                            score_path = "./data/score_by_topic_probability_values_var.json"
-
-                            if os.path.isfile(score_path):
-                                with open(score_path, 'r') as file:
-                                    score_values = json.load(file)
-                            else:
-                                score_values = dict()
-
-                            short_mode = "is" if mode == "intersection" else "un"
-                            key = f"{path1.split('/')[0]}-{short_mode}"
-                            if key not in score_values.keys():
-                                score_values[key] = np.ones((25, topics.shape[0])).tolist()
-
-                            score_values[key][(j-1)+(i-1)*5][idx] = diff_score
-
-                            with open(score_path, 'w') as file:
-                                json.dump(score_values, file)
-
-                            # Compare models with score_by_top_topic and save
-                            diff_score = score_by_top_topic(ldamodel_1, ldamodel_2, corpus_1, corpus_2)
-
-                            score_path = "./data/score_by_top_topic_var.json"
-
-                            if os.path.isfile(score_path):
-                                with open(score_path, 'r') as file:
-                                    score_values = json.load(file)
-                            else:
-                                score_values = dict()
-
-                            short_mode = "is" if mode == "intersection" else "un"
-                            key = f"{path1.split('/')[0]}-{short_mode}"
-                            if key not in score_values.keys():
-                                score_values[key] = np.ones((25, topics.shape[0])).tolist()
-
-                            score_values[key][(j-1)+(i-1)*5][idx] = diff_score
-
-                            with open(score_path, 'w') as file:
-                                json.dump(score_values, file)
-
-                            pbar.update(1)
-
-
 def generate_score_plot():
     for case in [1, 2, 3, 4]:
         if case == 1:
             score_file_path = "./data/score_by_top_topic.json"
-            title = "'Score by Top Topic'-Topic Graph for LDA Models (intersected dicts)"
-            y_label = "Score by Top Topic (lower is better)"
+            title = "'Score by Top Topic'-Topic Graph for LDA Models"
+            subtitle = "(intersected dicts, lower score means more similar)"
+            y_label = "Score by Top Topic"
             mode = 'is'
         elif case == 2:
             score_file_path = "./data/score_by_top_topic.json"
-            title = "'Score by Top Topic'-Topic Graph for LDA Models (unionized dicts)"
-            y_label = "Score by Top Topic (lower is better)"
+            title = "'Score by Top Topic'-Topic Graph for LDA Models"
+            subtitle = "(unionized dicts, lower score means more similar)"
+            y_label = "Score by Top Topic"
             mode = 'un'
         elif case == 3:
             score_file_path = "./data/score_by_topic_probability_values.json"
-            title = "'Score by Topic Prob.'-Topic Graph for LDA Models (intersected dicts)"
-            y_label = "Score by Topic Probability (lower is better)"
+            title = "'Score by Topic Prob.'-Topic Graph for LDA Models"
+            subtitle = "(intersected dicts, lower score means more similar)"
+            y_label = "Score by Topic Probability"
             mode = 'is'
         elif case == 4:
             score_file_path = "./data/score_by_topic_probability_values.json"
-            title = "'Score by Topic Prob.'-Topic Graph for LDA Models (unionized dicts)"
-            y_label = "Score by Topic Probability (lower is better)"
+            title = "'Score by Topic Prob.'-Topic Graph for LDA Models"
+            subtitle = "(unionized dicts, lower score means more similar)"
+            y_label = "Score by Topic Probability"
             mode = 'un'
         else:
             print("ERROR")
@@ -338,14 +117,38 @@ def generate_score_plot():
         values = list(score_values.values())
         topics = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100]
 
+        color = iter(cm.tab10(np.linspace(0, 1, 10)))
         plt.clf()
+        legend = []
+        legend_typ = []
+        legend_top = []
         fig, axes = plt.subplots()
+        c = next(color)
         for idx, name in enumerate(names):
             if mode not in name:
                 continue
-            axes.plot(topics, values[idx], label="-".join(name.split('-')[1:]))
+            style = 'solid'
+            label = name.split('-')[:-1]
+            if "typ_p" in name:
+                style = 'dashed'
+                del label[-1]
+            elif "top_p" in name:
+                style = 'dotted'
+                del label[-1]
+            else:
+                c = next(color)
+            label = " - ".join(label)
+            line, = axes.plot(topics, values[idx], label=label, c=c, linestyle=style, linewidth=2)
+            if "typ_p" in name:
+                legend_typ.append(line)
+            elif "top_p" in name:
+                legend_top.append(line)
+            else:
+                legend.append(line)
+
         plt.ylim(0, 1)
-        axes.set_title(title, fontsize=11)
+        plt.suptitle(title, fontsize=15)
+        axes.set_title(subtitle, fontsize=8, x=0.6)
         axes.set_xscale('log')
         axes.set_xlabel('Number of Topics')
         axes.set_ylabel(y_label)
@@ -353,34 +156,32 @@ def generate_score_plot():
         axes.get_xaxis().set_major_formatter(ScalarFormatter())
 
         font = FontProperties()
-        font.set_size('xx-small')
-        axes.legend(bbox_to_anchor=(1.04, 1), loc="upper left", prop=font)
+        font.set_size(8)
+
+        first_legend = axes.legend(handlelength=2, handles=legend, bbox_to_anchor=(1.04, 1), loc="upper left", prop=font, title='Normal sampling')
+        axes.add_artist(first_legend)
+        second_legend = axes.legend(handlelength=2, handles=legend_top, bbox_to_anchor=(1.04, 0.58), loc="upper left", prop=font, title='Top_p sampling')
+        axes.add_artist(second_legend)
+        third_legend = axes.legend(handlelength=2, handles=legend_typ, bbox_to_anchor=(1.04, 0.35), loc="upper left", prop=font, title='Typ_p sampling')
+
         fig.tight_layout()
         plt.savefig(f"{score_file_path[:-5]}_{mode}.png", dpi=300)
         plt.close('all')
 
 
-def generate_var_plot():
-    for case in [1, 2, 3, 4]:
+def generate_coherence_plot():
+    for case in [1, 2]:
         if case == 1:
-            score_file_path = "./data/score_by_top_topic_var.json"
-            title = "Variance TT-Score Graph for LDA Models (intersected dicts)"
-            y_label = "Score by Top Topic (lower is better)"
+            score_file_path = "./data/score_by_topic_coherence.json"
+            title = "Topic Coherence Score (C_v) for LDA Models"
+            subtitle = "(intersected dicts, higher score means more semantic similarity between high scoring words)"
+            y_label = "C_v Score"
             mode = 'is'
         elif case == 2:
-            score_file_path = "./data/score_by_top_topic_var.json"
-            title = "Variance TT-Score Graph for LDA Models (unionized dicts)"
-            y_label = "Score by Top Topic (lower is better)"
-            mode = 'un'
-        elif case == 3:
-            score_file_path = "./data/score_by_topic_probability_values_var.json"
-            title = "Variance TP-Score Graph for LDA Models (intersected dicts)"
-            y_label = "Score by Topic Probability (lower is better)"
-            mode = 'is'
-        elif case == 4:
-            score_file_path = "./data/score_by_topic_probability_values_var.json"
-            title = "Variance TP-Score Graph for LDA Models (unionized dicts)"
-            y_label = "Score by Topic Probability (lower is better)"
+            score_file_path = "./data/score_by_topic_coherence.json"
+            title = "Topic Coherence Score (C_v) for LDA Models"
+            subtitle = "(unionized dicts, higher score means more semantic similarity between high scoring words)"
+            y_label = "C_v Score"
             mode = 'un'
         else:
             print("ERROR")
@@ -391,20 +192,111 @@ def generate_var_plot():
 
         names = list(score_values.keys())
         values = list(score_values.values())
+        topics = [2, 5, 10, 20, 50, 100]
 
-        topics = [5, 10]
+        color = iter(cm.Dark2(np.linspace(0, 1, 8)))
+        plt.clf()
+        legend = []
+        legend_typ = []
+        legend_top = []
+        fig, axes = plt.subplots()
+        c = next(color)
+        for idx, name in enumerate(names):
+            if mode not in name:
+                continue
+            style = 'solid'
+            label = name.split('-')[:-1]
+            if "typ_p" in name:
+                style = 'dashed'
+                del label[-1]
+            elif "top_p" in name:
+                style = 'dotted'
+                del label[-1]
+            else:
+                c = next(color)
+            label = " - ".join(label)
+            line, = axes.plot(topics, values[idx], label=label, c=c, linestyle=style, linewidth=2)
+            if "typ_p" in name:
+                legend_typ.append(line)
+            elif "top_p" in name:
+                legend_top.append(line)
+            else:
+                legend.append(line)
+
+        plt.ylim(0, 1)
+        plt.suptitle(title, fontsize=15)
+        axes.set_title(subtitle, fontsize=8, x=0.6)
+        axes.set_xscale('log')
+        axes.set_xlabel('Number of Topics')
+        axes.set_ylabel(y_label)
+        axes.set_xticks(topics)
+        axes.get_xaxis().set_major_formatter(ScalarFormatter())
+
+        font = FontProperties()
+        font.set_size(8)
+
+        first_legend = axes.legend(handlelength=2, handles=legend, bbox_to_anchor=(1.04, 1), loc="upper left", prop=font, title='Normal sampling')
+        axes.add_artist(first_legend)
+        second_legend = axes.legend(handlelength=2, handles=legend_top, bbox_to_anchor=(1.04, 0.75), loc="upper left", prop=font, title='Top_p sampling')
+        axes.add_artist(second_legend)
+        third_legend = axes.legend(handlelength=2, handles=legend_typ, bbox_to_anchor=(1.04, 0.56), loc="upper left", prop=font, title='Typ_p sampling')
+
+        fig.tight_layout()
+        plt.savefig(f"{score_file_path[:-5]}_{mode}_coherence.png", dpi=300)
+        plt.close('all')
+
+
+def generate_plot_var_diff():
+    for case in [1, 2, 3, 4]:
+        if case == 1:
+            score_file_path = "./data/score_by_top_topic_var_diff.json"
+            title = "Variance TT-Score Graph for LDA Models"
+            subtitle = f"(intersected dicts, different seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Top Topic"
+            mode = 'is'
+        elif case == 2:
+            score_file_path = "./data/score_by_top_topic_var_diff.json"
+            title = "Variance TT-Score Graph for LDA Models"
+            subtitle = f"(unionized dicts, different seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Top Topic"
+            mode = 'un'
+        elif case == 3:
+            score_file_path = "./data/score_by_topic_probability_values_var_diff.json"
+            title = "Variance TP-Score Graph for LDA Models"
+            subtitle = f"(intersected dicts, different seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Topic Probability"
+            mode = 'is'
+        elif case == 4:
+            score_file_path = "./data/score_by_topic_probability_values_var_diff.json"
+            title = "Variance TP-Score Graph for LDA Models"
+            subtitle = f"(unionized dicts, different seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Topic Probability"
+            mode = 'un'
+        else:
+            print("ERROR")
+            return
+        if os.path.isfile(score_file_path):
+            with open(score_file_path, 'r') as file:
+                score_values = json.load(file)
+
+        names = list(score_values.keys())
+        values = list(score_values.values())
+        color = iter(cm.PiYG(np.linspace(0, 1, 13)))
+        topics = [2, 5, 10]
 
         plt.clf()
         fig, axes = plt.subplots()
         for idx, name in enumerate(names):
             if mode not in name:
                 continue
-            for i in range(25):
-                print(values[idx][i])
-                axes.plot(topics, values[idx][i], label="-".join(name.split('-')[1:])+f"{i}")
+            for i in range(5):
+                c = next(color)
+                axes.plot(topics, values[idx][i], label="-".join(name.split('-')[1:])+f"{i}", c=c)
+
         plt.ylim(0, 1)
-        axes.set_title(title, fontsize=11)
-        axes.set_xscale('log')
+        plt.suptitle(title, fontsize=15)
+        axes.set_title(subtitle, fontsize=8, x=0.6)
+        axes.set_xscale('linear')
         axes.set_xlabel('Number of Topics')
         axes.set_ylabel(y_label)
         axes.set_xticks(topics)
@@ -414,12 +306,77 @@ def generate_var_plot():
         font.set_size('xx-small')
         axes.legend(bbox_to_anchor=(1.04, 1), loc="upper left", prop=font)
         fig.tight_layout()
-        plt.savefig(f"{score_file_path[:-5]}_{mode}_var.png", dpi=300)
+        plt.savefig(f"{score_file_path[:-5]}_{mode}_var_diff.png", dpi=300)
+        plt.close('all')
+
+
+def generate_plot_var_same():
+    for case in [1, 2, 3, 4]:
+        if case == 1:
+            score_file_path = "./data/score_by_top_topic_var_same.json"
+            title = "Variance TT-Score Graph for LDA Models"
+            subtitle = f"(intersected dicts, same seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Top Topic"
+            mode = 'is'
+        elif case == 2:
+            score_file_path = "./data/score_by_top_topic_var_same.json"
+            title = "Variance TT-Score Graph for LDA Models"
+            subtitle = f"(unionized dicts, same seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Top Topic"
+            mode = 'un'
+        elif case == 3:
+            score_file_path = "./data/score_by_topic_probability_values_var_same.json"
+            title = "Variance TP-Score Graph for LDA Models"
+            subtitle = f"(intersected dicts, same seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Topic Probability"
+            mode = 'is'
+        elif case == 4:
+            score_file_path = "./data/score_by_topic_probability_values_var_same.json"
+            title = "Variance TP-Score Graph for LDA Models"
+            subtitle = f"(unionized dicts, same seed for sampling corpus, lower score means more similar)"
+            y_label = "Score by Topic Probability"
+            mode = 'un'
+        else:
+            print("ERROR")
+            return
+        if os.path.isfile(score_file_path):
+            with open(score_file_path, 'r') as file:
+                score_values = json.load(file)
+
+        names = list(score_values.keys())
+        values = list(score_values.values())
+        color = iter(cm.PiYG(np.linspace(0, 1, 19)))
+        topics = [2, 5, 10]
+
+        plt.clf()
+        fig, axes = plt.subplots()
+        for idx, name in enumerate(names):
+            if mode not in name:
+                continue
+            for i in range(9):
+                c = next(color)
+                axes.plot(topics, values[idx][i], label="-".join(name.split('-')[1:])+f"{i}", c=c)
+
+        plt.suptitle(title, fontsize=15)
+        axes.set_title(subtitle, fontsize=8, x=0.6)
+        axes.set_xscale('linear')
+        axes.set_xlabel('Number of Topics')
+        axes.set_ylabel(y_label)
+        axes.set_xticks(topics)
+        axes.get_xaxis().set_major_formatter(ScalarFormatter())
+
+        font = FontProperties()
+        font.set_size('xx-small')
+        axes.legend(bbox_to_anchor=(1.04, 1), loc="upper left", prop=font)
+        fig.tight_layout()
+        plt.savefig(f"{score_file_path[:-5]}_{mode}_var_same.png", dpi=300)
         plt.close('all')
 
 
 def main():
-    generate_bjobs()
+    set_seed(42)
+    generate_score_plot()
 
 
-main()
+if __name__ == '__main__':
+    main()
