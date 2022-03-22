@@ -19,7 +19,9 @@ def create_corpus(
         lm_model=AutoModelForCausalLM,
         pad_token_id=None,
         save_path="data/test",
-        load_size=1
+        load_size=1,
+        top_p=1.0,
+        typ_p=1.0
     ):
     r"""
     Generates sequences/documents/a corpus for models with a language modeling head.
@@ -37,6 +39,19 @@ def create_corpus(
             The pre-trained model class with language modeling head
         device (`str`, *optional*, defaults to "cpu"):
             The device the computations commence "cpu" or "cuda"
+
+
+        Models:
+        1 - GPT2 - Normal sampling, trained on integrated wikitext
+        2 - GPT2 - normal sampling, trained by manually defining wikitext
+        3 - GPT2 - corpus 1 , normal sampling, trained by manually defining wikitext, without titles
+        4 - GPT2 - corpus 2 , normal sampling, trained by manually defining wikitext, without titles
+        5 - GPT2 - corpus 1, normal sampling, original model
+        6 - GPT2 - corpus 2, normal sampling, original model
+        7 - GPT2 - corpus 1 , top_p sampling, trained by manually defining wikitext, without titles
+        8 - GPT2 - corpus 2 , top_p sampling, trained by manually defining wikitext, without titles
+        9 - GPT2 - corpus 1 , typ_p sampling, trained by manually defining wikitext, without titles
+        10 - GPT2 - corpus 2 , typ_p sampling, trained by manually defining wikitext, without titles
     """
 
     if os.path.isfile(save_path):
@@ -70,8 +85,8 @@ def create_corpus(
             num_beams=1,                            # 1 deactivates beam_search
             temperature=1.0,                        # 1.0 deactivates temperature
             top_k=0,                                # 0 deactivates top_k sampling
-            top_p=1.0,                              # 1.0 deactivates top_p (nucleus) sampling  using 0.9
-            typical_p=0.2,                          # 1.0 deactivates typical_p sampling        using 0.2
+            top_p=top_p,                              # 1.0 deactivates top_p (nucleus) sampling  using 0.9
+            typical_p=typ_p,                          # 1.0 deactivates typical_p sampling        using 0.2
             repetition_penalty=1.0,                 # 1.0 deactivates repetition_penalty
             pad_token_id=pad_token_id,              # For open-end generation set to eos_token_id
             #bos_token_id=bos_token_id,
@@ -103,13 +118,13 @@ def main():
         print("ERROR: No input argument")
         return
 
-    case = int(sys.argv[1])
+    model = int(sys.argv[1])
 
     set_seed(42)
 
-    # Integrated
-    if case == 1:
-        print(f"Entering case: {case}")
+    # GPT2 - Normal sampling, trained on integrated wikitext
+    if model == 1:
+        print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
             model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki-integrated",
@@ -123,9 +138,9 @@ def main():
             load_size=load_size
         )
 
-    # Self
-    elif case == 2:
-        print(f"Entering case: {case}")
+    # GPT2 - normal sampling, trained by manually defining wikitext
+    elif model == 2:
+        print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
             model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki",
@@ -139,9 +154,9 @@ def main():
             load_size=load_size
         )
 
-    # No titles
-    elif case == 3:
-        print(f"Entering case: {case}")
+    # GPT2 - corpus 1 , normal sampling, trained by manually defining wikitext, without titles
+    elif model == 3:
+        print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
             model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
@@ -151,11 +166,13 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt-typ_p.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt.json",
             load_size=load_size
         )
-    elif case == 4:
-        print(f"Entering case: {case}")
+
+    # GPT2 - corpus 2, normal sampling, trained by manually defining wikitext, without titles
+    elif model == 4:
+        print(f"Entering model: {model}")
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
@@ -166,11 +183,13 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt-typ_p.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt.json",
             load_size=load_size
         )
-    elif case == 5:
-        print(f"Entering case: {case}")
+
+    # GPT2 - corpus 1, normal sampling, original model
+    elif model == 5:
+        print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
             model_name="gpt2",
@@ -183,8 +202,10 @@ def main():
             save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2.json",
             load_size=load_size
         )
-    elif case == 6:
-        print(f"Entering case: {case}")
+
+    # GPT2 - corpus 2, normal sampling, original model
+    elif model == 6:
+        print(f"Entering model: {model}")
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
@@ -198,47 +219,74 @@ def main():
             save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2.json",
             load_size=load_size
         )
-    elif case == 7:
-        print(f"Entering case: {case}")
+
+    # GPT2 - corpus 1 , top_p sampling, trained by manually defining wikitext, without titles
+    elif model == 7:
+        print(f"Entering model: {model}")
         create_corpus(
-            tokenizer_name="gpt2-large",
-            model_name="gpt2-large",
+            tokenizer_name="gpt2",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/data_gpt2-large.json",
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt-top_p.json",
             load_size=load_size
         )
-    elif case == 8:
-        print(f"Entering case: {case}")
+
+    # GPT2 - corpus 2, top_p sampling, trained by manually defining wikitext, without titles
+    elif model == 8:
+        print(f"Entering model: {model}")
+        set_seed(1337)
         create_corpus(
-            tokenizer_name="gpt2-xl",
-            model_name="gpt2-xl",
+            tokenizer_name="gpt2",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/data_gpt2-xl.json",
-            load_size=load_size
+            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt-top_p.json",
+            load_size=load_size,
+            top_p=0.9
         )
-    elif case == 9:
-        print(f"Entering case: {case}")
+
+    # GPT2 - corpus 1 , typical_p sampling, trained by manually defining wikitext, without titles
+    elif model == 9:
+        print(f"Entering model: {model}")
         create_corpus(
-            tokenizer_name="EleutherAI/gpt-neo-2.7B",
-            model_name="EleutherAI/gpt-neo-2.7B",
-            max_document_length=2048,
+            tokenizer_name="gpt2",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
-            lm_model=GPTNeoForCausalLM,
-            pad_token_id=None,
-            save_path="/cluster/work/cotterell/knobelf/data/data_gpt2neo.json",
-            load_size=load_size
+            lm_model=GPT2LMHeadModel,
+            pad_token_id='eos_token_id',
+            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt-typ_p.json",
+            load_size=load_size,
+            top_p=0.9
+        )
+
+    # GPT2 - corpus 2, typical_p sampling, trained by manually defining wikitext, without titles
+    elif model == 10:
+        print(f"Entering model: {model}")
+        set_seed(1337)
+        create_corpus(
+            tokenizer_name="gpt2",
+            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            max_document_length=None,
+            device=device,
+            corpus_size=corpus_size,
+            tokenizer_model=GPT2Tokenizer,
+            lm_model=GPT2LMHeadModel,
+            pad_token_id='eos_token_id',
+            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt-typ_p.json",
+            load_size=load_size,
+            typ_p=0.2
         )
 
 
