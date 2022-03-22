@@ -40,18 +40,6 @@ def create_corpus(
         device (`str`, *optional*, defaults to "cpu"):
             The device the computations commence "cpu" or "cuda"
 
-
-        Models:
-        1 - GPT2 - Normal sampling, trained on integrated wikitext
-        2 - GPT2 - normal sampling, trained by manually defining wikitext
-        3 - GPT2 - corpus 1 , normal sampling, trained by manually defining wikitext, without titles
-        4 - GPT2 - corpus 2 , normal sampling, trained by manually defining wikitext, without titles
-        5 - GPT2 - corpus 1, normal sampling, original model
-        6 - GPT2 - corpus 2, normal sampling, original model
-        7 - GPT2 - corpus 1 , top_p sampling, trained by manually defining wikitext, without titles
-        8 - GPT2 - corpus 2 , top_p sampling, trained by manually defining wikitext, without titles
-        9 - GPT2 - corpus 1 , typ_p sampling, trained by manually defining wikitext, without titles
-        10 - GPT2 - corpus 2 , typ_p sampling, trained by manually defining wikitext, without titles
     """
 
     if os.path.isfile(save_path):
@@ -110,15 +98,36 @@ def create_corpus(
 
 
 def main():
+    """
+    Models:
+        1 - GPT2 - Normal sampling, trained on integrated wikitext
+        2 - GPT2 - normal sampling, trained by manually defining wikitext
+        3 - GPT2 - corpus 1 , normal sampling, trained by manually defining wikitext, without titles
+        4 - GPT2 - corpus 2 , normal sampling, trained by manually defining wikitext, without titles
+        5 - GPT2 - corpus 1, normal sampling, original model
+        6 - GPT2 - corpus 2, normal sampling, original model
+        7 - GPT2 - corpus 1 , top_p sampling, trained by manually defining wikitext, without titles
+        8 - GPT2 - corpus 2 , top_p sampling, trained by manually defining wikitext, without titles
+        9 - GPT2 - corpus 1 , typ_p sampling, trained by manually defining wikitext, without titles
+        10 - GPT2 - corpus 2 , typ_p sampling, trained by manually defining wikitext, without titles
+
+    Run Example:
+        python generate_corpora.py 5 /cluster/work/cotterell/knobelf/data/
+    """
+
     corpus_size = 100000
     device = "cuda" if torch.cuda.is_available() else "cpu"
     load_size = 100
 
-    if len(sys.argv) < 2:
-        print("ERROR: No input argument")
+    if len(sys.argv) < 3:
+        print("ERROR: Wrong input arguments")
         return
 
     model = int(sys.argv[1])
+    data_folder_path = sys.argv[2]
+
+    if data_folder_path[-1] != "/":
+        data_folder_path += "/"
 
     set_seed(42)
 
@@ -127,14 +136,14 @@ def main():
         print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki-integrated",
+            model_name=f"{data_folder_path}model-gpt2-wiki-integrated",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki-integrated.json",
+            save_path=f"{data_folder_path}dataset1-gpt2-wiki-integrated.json",
             load_size=load_size
         )
 
@@ -143,14 +152,14 @@ def main():
         print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki",
+            model_name=f"{data_folder_path}model-gpt2-wiki",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki.json",
+            save_path=f"{data_folder_path}dataset1-gpt2-wiki.json",
             load_size=load_size
         )
 
@@ -159,14 +168,14 @@ def main():
         print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            model_name=f"{data_folder_path}model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt.json",
+            save_path=f"{data_folder_path}dataset1-gpt2-wiki_nt.json",
             load_size=load_size
         )
 
@@ -176,14 +185,14 @@ def main():
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            model_name=f"{data_folder_path}model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt.json",
+            save_path=f"{data_folder_path}dataset2-gpt2-wiki_nt.json",
             load_size=load_size
         )
 
@@ -199,7 +208,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2.json",
+            save_path=f"{data_folder_path}dataset1-gpt2.json",
             load_size=load_size
         )
 
@@ -216,7 +225,7 @@ def main():
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2.json",
+            save_path=f"{data_folder_path}dataset2-gpt2.json",
             load_size=load_size
         )
 
@@ -225,14 +234,14 @@ def main():
         print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            model_name=f"{data_folder_path}model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt-top_p.json",
+            save_path=f"{data_folder_path}dataset1-gpt2-wiki_nt-top_p.json",
             load_size=load_size
         )
 
@@ -242,14 +251,14 @@ def main():
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            model_name=f"{data_folder_path}model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt-top_p.json",
+            save_path=f"{data_folder_path}dataset2-gpt2-wiki_nt-top_p.json",
             load_size=load_size,
             top_p=0.9
         )
@@ -259,14 +268,14 @@ def main():
         print(f"Entering model: {model}")
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            model_name=f"{data_folder_path}model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset1-gpt2-wiki_nt-typ_p.json",
+            save_path=f"{data_folder_path}dataset1-gpt2-wiki_nt-typ_p.json",
             load_size=load_size,
             top_p=0.9
         )
@@ -277,19 +286,23 @@ def main():
         set_seed(1337)
         create_corpus(
             tokenizer_name="gpt2",
-            model_name="/cluster/work/cotterell/knobelf/data/model-gpt2-wiki_nt",
+            model_name=f"{data_folder_path}model-gpt2-wiki_nt",
             max_document_length=None,
             device=device,
             corpus_size=corpus_size,
             tokenizer_model=GPT2Tokenizer,
             lm_model=GPT2LMHeadModel,
             pad_token_id='eos_token_id',
-            save_path="/cluster/work/cotterell/knobelf/data/dataset2-gpt2-wiki_nt-typ_p.json",
+            save_path=f"{data_folder_path}dataset2-gpt2-wiki_nt-typ_p.json",
             load_size=load_size,
             typ_p=0.2
         )
 
     # TODO: add another model to test
+
+    else:
+        print("ERROR: Wrong input arguments")
+        return
 
 
 main()
