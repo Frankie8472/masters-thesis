@@ -15,18 +15,18 @@ from nltk import WordNetLemmatizer, RegexpTokenizer
 from transformers import set_seed
 
 
-def load_wikitext(samples=100000):
+def load_wikitext(path, samples=100000):
     heading_pattern = '( \n [=\s].*[=\s] \n)'
-    train_data = Path('/cluster/work/cotterell/knobelf/data/data_wikitext-103-raw/wiki.train.raw').read_text(encoding='utf-8')
+    train_data = Path(f'{path}data_wikitext-103-raw/wiki.train.raw').read_text(encoding='utf-8')
     train_split = re.split(heading_pattern, train_data)
     train_headings = [x[7:-7] for x in train_split[1::2]]
     train_articles = [x for x in train_split[2::2]]
     return random.choices(train_articles, k=samples)
 
 
-def load_arxiv(samples=100000):
+def load_arxiv(path, samples=100000):
     def get_metadata():
-        with open('/cluster/work/cotterell/knobelf/data/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
+        with open(f'{path}data_arxiv-metadata-oai-snapshot.json', 'r') as f:
             for line in f:
                 yield line
 
@@ -65,7 +65,34 @@ def load_json(filename):
     return train_articles
 
 
-def tokenize(docs):
+def load_dataset(data_path, set_name, sampling_method):
+    if sampling_method == "normal":
+        sampling = ""
+    else:
+        sampling = "-" + sampling_method
+
+    dataset = "dataset1"
+    if set_name[-2:] == "_2":
+        dataset = "dataset2"
+
+    docs = None
+    if set_name == "arxiv":
+        if set_name[-2:] == "_2":
+            set_seed(1337)
+        docs = load_arxiv(data_path)
+    elif set_name == "wiki_nt":
+        if set_name[-2:] == "_2":
+            set_seed(1337)
+        docs = load_wikitext(data_path)
+    elif set_name == "gpt2_nt":
+        docs = load_json(f"{data_path}{dataset}-gpt2-wiki_nt{sampling}.json")
+    elif set_name == "gpt2":
+        docs = load_json(f"{data_path}{dataset}-gpt2{sampling}.json")
+
+    return docs
+
+
+def tokenize_preprocessing(docs, add_trigrams=True):
     # Tokenize the documents.
     # Split the documents into tokens.
     tokenizer = RegexpTokenizer(r'\w+')
@@ -84,11 +111,30 @@ def tokenize(docs):
     docs = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs]
 
     # Add bigrams to docs (only ones that appear 20 times or more).
-    bigram = Phrases(docs, min_count=20)
+    bigram = Phrases(docs, min_count=5, threshold=10.0)
+
+    trigram = Phrases(bigram[docs], min_count=5, threshold=10.0) if add_trigrams else None
+
     for idx in range(len(docs)):
-        for token in bigram[docs[idx]]:
+        doc = docs[idx]
+        bigrams = list()
+        trigrams = list()
+        for token in bigram[doc]:
             if '_' in token:
                 # Token is a bigram, add to document.
+                bigrams.append(token)
+        if add_trigrams:
+            for token in trigram[bigram[doc]]:
+                cnt = token.count('_')
+                if cnt == 2:
+                    # Token is a trigram, add to document.
+                    trigrams.append(token)
+
+        for token in bigrams:
+            docs[idx].append(token)
+
+        if add_trigrams:
+            for token in trigrams:
                 docs[idx].append(token)
 
     # Remove rare and common tokens.
@@ -97,6 +143,11 @@ def tokenize(docs):
 
     # Filter out words that occur less than 20 documents, or more than 50% of the documents.
     dictionary.filter_extremes(no_below=20, no_above=0.5)
+
+    return docs, dictionary
+
+
+def tokenize_bow_single(docs, dictionary):
     # Bag-of-words representation of the documents.
     corpus = [dictionary.doc2bow(doc) for doc in docs]
     print('Number of unique tokens: %d' % len(dictionary))
@@ -105,53 +156,9 @@ def tokenize(docs):
     return dictionary, corpus
 
 
-def tokenize_special(docs0, docs1, union=False):  # False is intersection
-    # Tokenize the documents.
-    # Split the documents into tokens.
-    tokenizer = RegexpTokenizer(r'\w+')
-
-    for idx in range(len(docs0)):
-        docs0[idx] = docs0[idx].lower()  # Convert to lowercase.
-        docs0[idx] = tokenizer.tokenize(docs0[idx])  # Split into words.
-    for idx in range(len(docs1)):
-        docs1[idx] = docs1[idx].lower()  # Convert to lowercase.
-        docs1[idx] = tokenizer.tokenize(docs1[idx])  # Split into words.
-
-    # Remove numbers, but not words that contain numbers.
-    docs0 = [[token for token in doc if not token.isnumeric()] for doc in docs0]
-    docs1 = [[token for token in doc if not token.isnumeric()] for doc in docs1]
-
-    # Remove words that are only one character.
-    docs0 = [[token for token in doc if len(token) > 1] for doc in docs0]
-    docs1 = [[token for token in doc if len(token) > 1] for doc in docs1]
-
-    # Lemmatize the documents. Better than stemmer as is easier to read
-    lemmatizer = WordNetLemmatizer()
-    docs0 = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs0]
-    docs1 = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs1]
-
-    # Add bigrams to docs (only ones that appear 20 times or more).
-    bigram = Phrases(docs0, min_count=20)
-    for idx in range(len(docs0)):
-        for token in bigram[docs0[idx]]:
-            if '_' in token:
-                # Token is a bigram, add to document.
-                docs0[idx].append(token)
-    bigram = Phrases(docs1, min_count=20)
-    for idx in range(len(docs1)):
-        for token in bigram[docs1[idx]]:
-            if '_' in token:
-                # Token is a bigram, add to document.
-                docs1[idx].append(token)
-
-    # Remove rare and common tokens.
-    # Create a dictionary representation of the documents.
-    dic0 = Dictionary(docs0)
-    dic1 = Dictionary(docs1)
-
-    # Filter out words that occur less than 20 documents, or more than 50% of the documents.
-    dic0.filter_extremes(no_below=20, no_above=0.5)
-    dic1.filter_extremes(no_below=20, no_above=0.5)
+def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of dictionaries
+    docs_new_0, dic0 = tokenize_preprocessing(docs0)
+    docs_new_1, dic1 = tokenize_preprocessing(docs1)
 
     if union:
         transformer = dic0.merge_with(dic1)
@@ -215,6 +222,117 @@ def train_lda(dictionary, corpus, topics):
 
 
 def main():
+    """
+    Command:
+        python train_lda.py [data_path] [first corpus] [second corpus] [focus] [sampling method] [number of topics] [merge technique] [variance index]
+
+        Corpus Options (always use gpt2 or wiki first, in that order (convention)):
+            gpt2, gpt2_nt, wiki_nt, arxiv
+        Focus options:
+            first: First corpus is used for lda model creation
+            second: Second corpus is used for lda model creation
+        Sampling method:
+            normal, typ_p, top_p
+        Topic options:
+            2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100, ...
+        Merge technique:
+            union: Unionize dictionaries
+            intersection: Intersect dictionaries
+        Variance index:
+            Model index when calculating the variance (changes the seed)
+
+    Examples:
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt wiki_nt first normal 5 union
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 first typ_p 10 intersection 1
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2_nt second typ_p 10 intersection 2
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt arxiv first typ_p 10 intersection 3
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ wiki_nt arxiv first typ_p 10 intersection 4
+
+    """
+    if len(sys.argv) < 8:
+        print("ERROR: Incorrect number of input arguments")
+        return
+
+    data_path = sys.argv[1]
+    first = sys.argv[2]
+    second = sys.argv[3]
+    focus = sys.argv[4]
+    sampling = sys.argv[5]
+    num_topics = int(sys.argv[6])
+    combi = sys.argv[7]
+
+    if data_path[-1] != "/":
+        data_path += "/"
+
+    if first not in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"]:
+        print("ERROR: undefined first input")
+        return
+
+    if second not in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"]:
+        print("ERROR: undefined second input")
+        return
+
+    folder_name = f"lda-{first}-{second}"
+
+    if first == second:
+        first += "_1"
+        second += "_2"
+
+    if sampling not in ["normal", "typ_p", "top_p"]:
+        print("ERROR: undefined sampling input")
+        return
+
+    if num_topics <= 1:
+        print("ERROR: undefined num_topics input")
+        return
+
+    union = None
+    if combi == "intersection":
+        union = False
+    elif combi == "union":
+        union = True
+    else:
+        print("ERROR: undefined combi input")
+        return
+
+    set_seed(42)
+    docs1 = load_dataset(data_path, first, sampling)
+    docs2 = load_dataset(data_path, second, sampling)
+    set_seed(42)
+
+    dic1, cor1, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union)
+
+    model_name = None
+    if focus == "first":
+        model_name = first
+        dictionary = dic1
+        corpus = cor1
+    elif focus == "second":
+        model_name = second
+        dictionary = dic2
+        corpus = cor2
+    else:
+        print("ERROR: undefined focus input")
+        return
+
+    index = ""
+    if len(sys.argv) == 9:
+        index = sys.argv[8]
+        set_seed(42 + 7**int(index))
+        index = "/" + index
+
+    model = train_lda(dictionary, corpus, num_topics)
+
+    file_path = f"{data_path}{folder_name}/{model_name}{index}/{combi}/{num_topics}/"
+
+    os.makedirs(os.path.dirname(f"{file_path}corpus_{num_topics}"), exist_ok=True)
+    with open(f"{file_path}corpus_{num_topics}", "w") as file:
+        json.dump(corpus, file, indent=2)
+    dictionary.save(f"{file_path}dictionary_{num_topics}")
+    model.save(f"{file_path}ldamodel_{num_topics}")
+
+
+def main2():
     if len(sys.argv) < 4:
         print("ERROR: Incorrect number of input arguments")
         return
