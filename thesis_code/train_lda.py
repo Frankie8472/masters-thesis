@@ -286,7 +286,6 @@ def main():
         print(">> ERROR: undefined num_topics input")
         return
 
-    union = None
     if combi == "intersection":
         union = False
     elif combi == "union":
@@ -302,7 +301,6 @@ def main():
 
     dic1, cor1, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union)
 
-    model_name = None
     if focus == "first":
         model_name = first
         dictionary = dic1
