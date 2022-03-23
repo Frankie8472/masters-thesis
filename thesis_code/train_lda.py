@@ -184,6 +184,7 @@ def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of di
 
 def train_lda(dictionary, corpus, topics):
     # Train LDA model.
+    # TODO: Add neural topic model
 
     # Set training parameters.
     num_topics = topics
