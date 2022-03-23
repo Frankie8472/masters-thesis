@@ -1,4 +1,3 @@
-import gc
 import logging
 import os
 import random
@@ -150,8 +149,8 @@ def tokenize_preprocessing(docs, add_trigrams=True):
 def tokenize_bow_single(docs, dictionary):
     # Bag-of-words representation of the documents.
     corpus = [dictionary.doc2bow(doc) for doc in docs]
-    print('Number of unique tokens: %d' % len(dictionary))
-    print('Number of documents: %d' % len(corpus))
+    print('>> Number of unique tokens: %d' % len(dictionary))
+    print('>> Number of documents: %d' % len(corpus))
 
     return dictionary, corpus
 
@@ -175,10 +174,10 @@ def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of di
     # Bag-of-words representation of the documents.
     cor0 = [dic0.doc2bow(doc) for doc in docs0]
     cor1 = [dic1.doc2bow(doc) for doc in docs1]
-    print('Number of unique tokens in dic0: %d' % len(dic0))
-    print('Number of unique tokens in dic1: %d' % len(dic1))
-    print('Number of documents of cor0: %d' % len(cor0))
-    print('Number of documents of cor1: %d' % len(cor1))
+    print('>> Number of unique tokens in dic0: %d' % len(dic0))
+    print('>> Number of unique tokens in dic1: %d' % len(dic1))
+    print('>> Number of documents of cor0: %d' % len(cor0))
+    print('>> Number of documents of cor1: %d' % len(cor1))
 
     return dic0, cor0, dic1, cor1
 
@@ -214,7 +213,7 @@ def train_lda(dictionary, corpus, topics):
 
     # Average topic coherence is the sum of topic coherences of all topics, divided by the number of topics.
     avg_topic_coherence = sum([t[1] for t in top_topics]) / num_topics
-    print('Average topic coherence: %.4f.' % avg_topic_coherence)
+    print('>> Average topic coherence: %.4f.' % avg_topic_coherence)
 
     pprint(top_topics)
 
@@ -226,8 +225,8 @@ def main():
     Command:
         python train_lda.py [data_path] [first corpus] [second corpus] [focus] [sampling method] [number of topics] [merge technique] [variance index]
 
-        Corpus Options (always use gpt2 or wiki first, in that order (convention)):
-            gpt2, gpt2_nt, wiki_nt, arxiv
+        Corpus Options (always use gpt2_nt, gpt2 or wiki first, in that order (convention)):
+            gpt2_nt, gpt2, wiki_nt, arxiv
         Focus options:
             first: First corpus is used for lda model creation
             second: Second corpus is used for lda model creation
@@ -244,13 +243,13 @@ def main():
     Examples:
         python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt wiki_nt first normal 5 union
         python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 first typ_p 10 intersection 1
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2_nt second typ_p 10 intersection 2
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt arxiv first typ_p 10 intersection 3
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 second typ_p 10 intersection 2
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2 arxiv first typ_p 10 intersection 3
         python train_lda.py /cluster/work/cotterell/knobelf/data/ wiki_nt arxiv first typ_p 10 intersection 4
 
     """
     if len(sys.argv) < 8:
-        print("ERROR: Incorrect number of input arguments")
+        print(">> ERROR: Incorrect number of input arguments")
         return
 
     data_path = sys.argv[1]
@@ -265,11 +264,11 @@ def main():
         data_path += "/"
 
     if first not in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"]:
-        print("ERROR: undefined first input")
+        print(">> ERROR: undefined first input")
         return
 
     if second not in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"]:
-        print("ERROR: undefined second input")
+        print(">> ERROR: undefined second input")
         return
 
     folder_name = f"lda-{first}-{second}"
@@ -279,11 +278,11 @@ def main():
         second += "_2"
 
     if sampling not in ["normal", "typ_p", "top_p"]:
-        print("ERROR: undefined sampling input")
+        print(">> ERROR: undefined sampling input")
         return
 
     if num_topics <= 1:
-        print("ERROR: undefined num_topics input")
+        print(">> ERROR: undefined num_topics input")
         return
 
     union = None
@@ -292,7 +291,7 @@ def main():
     elif combi == "union":
         union = True
     else:
-        print("ERROR: undefined combi input")
+        print(">> ERROR: undefined combi input")
         return
 
     set_seed(42)
@@ -312,15 +311,17 @@ def main():
         dictionary = dic2
         corpus = cor2
     else:
-        print("ERROR: undefined focus input")
+        print(">> ERROR: undefined focus input")
         return
 
     index = ""
     if len(sys.argv) == 9:
-        index = sys.argv[8]
-        set_seed(42 + 7**int(index))
-        index = "/" + index
+        index = "/" + sys.argv[8]
+        seed = 42 + 7**int(index[1:])
+        set_seed(seed)
+        print(f">> SEED changing to: {seed}")
 
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
     model = train_lda(dictionary, corpus, num_topics)
 
     file_path = f"{data_path}{folder_name}/{model_name}{index}/{combi}/{num_topics}/"
@@ -332,439 +333,5 @@ def main():
     model.save(f"{file_path}ldamodel_{num_topics}")
 
 
-def main2():
-    if len(sys.argv) < 4:
-        print("ERROR: Incorrect number of input arguments")
-        return
-
-    data_folder = "/cluster/work/cotterell/knobelf/data/"
-
-    union = bool(int(sys.argv[1]))
-    dataset = int(sys.argv[2])
-    topics = int(sys.argv[3])
-    pathname = None
-
-    combi = "union" if union else "intersection"
-
-    extra_folder = ""
-    iteration = None
-    if len(sys.argv) >= 5:
-        iteration = int(sys.argv[4])
-        extra_folder = "/" + sys.argv[4]
-
-    seed = seed2 = 42
-    if iteration is not None:
-        seed2 = 42 + 7**iteration
-        if iteration < 6:
-            seed = seed2
-
-    print(f"SEED: {seed}")
-    print(f"SEED2: {seed2}")
-
-    if not len(sys.argv) >= 6 and dataset == 0:
-        print("ERROR: no path argument and dataset == 0")
-    elif len(sys.argv) >= 6:
-        pathname = sys.argv[5]
-
-    set_seed(seed)
-    samples = 100000
-
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
-
-    if dataset == 0:
-        data_train = load_json(pathname)
-        dictionary, corpus = tokenize(data_train)
-        model = train_lda(dictionary, corpus, topics)
-        os.makedirs(os.path.dirname(f"{data_folder}test/corpus2_{topics}"), exist_ok=True)
-        with open(f"{data_folder}test/corpus2_{topics}", "w") as file:
-            json.dump(corpus, file, indent=2)
-        dictionary.save(f"{data_folder}test/dictionary2_{topics}")
-        model.save(f"{data_folder}test/ldamodel2_{topics}")
-
-    # Create LDA Model for wiki_nt and gpt2_nt
-    elif dataset == 1 or dataset == 2:
-        data_train_1 = load_wikitext(samples)
-        data_train_2 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 1:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-gpt2_nt-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-wiki_nt/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-wiki_nt/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2_nt-wiki_nt/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-wiki_nt/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for gpt2_nt and gpt2_nt
-    elif dataset == 3 or dataset == 4:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2-wiki_nt.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 3:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_1{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-gpt2_nt/gpt2_nt_2{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for gpt2 and gpt2
-    elif dataset == 5 or dataset == 6:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 5:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2-gpt2/gpt2_1{extra_folder}/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
-            with open(f"{data_folder}lda-gpt2-gpt2/gpt2_1{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-gpt2-gpt2/gpt2_1{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2-gpt2/gpt2_1{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2-gpt2/gpt2_2{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2-gpt2/gpt2_2{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2-gpt2/gpt2_2{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2-gpt2/gpt2_2{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for wiki_nt and arxiv
-    elif dataset == 7 or dataset == 8:
-        data_train_1 = load_wikitext(samples)
-        data_train_2 = load_arxiv(samples)
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 7:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
-            with open(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-wiki_nt-arxiv/wiki_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-wiki_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-wiki_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-wiki_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-wiki_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for arxiv and gpt2_nt
-    elif dataset == 9 or dataset == 10:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
-        data_train_2 = load_arxiv(samples)
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 9:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"), exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-arxiv/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-arxiv/arxiv{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for arxiv and gpt2_nt-top_p
-    elif dataset == 11 or dataset == 12:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-top_p.json")
-        data_train_2 = load_arxiv(samples)
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 11:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(
-                f"{data_folder}lda-gpt2_nt-arxiv-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-arxiv-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(
-                f"{data_folder}lda-gpt2_nt-arxiv-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-arxiv-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(f"{data_folder}lda-gpt2_nt-arxiv-top_p/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-arxiv-top_p/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(
-                f"{data_folder}lda-gpt2_nt-arxiv-top_p/arxiv{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-arxiv-top_p/arxiv{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for wikitext and gpt2_nt-top_p
-    elif dataset == 13 or dataset == 14:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-top_p.json")
-        data_train_2 = load_wikitext(samples)
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 13:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/wiki_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-wiki_nt-top_p/wiki_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for gpt2_nt-top_p and gpt2_nt-top_p
-    elif dataset == 15 or dataset == 16:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-top_p.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2-wiki_nt-top_p.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 15:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                        exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/corpus_{topics}", "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-gpt2_nt-top_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-    ##
-    # Create LDA Model for arxiv and gpt2_nt-typ_p
-    elif dataset == 17 or dataset == 18:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-typ_p.json")
-        data_train_2 = load_arxiv(samples)
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 17:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(
-                f"{data_folder}lda-gpt2_nt-arxiv-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-arxiv-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(
-                f"{data_folder}lda-gpt2_nt-arxiv-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(
-                f"{data_folder}lda-gpt2_nt-arxiv-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(
-                    f"{data_folder}lda-gpt2_nt-arxiv-typ_p/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-arxiv-typ_p/arxiv{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(
-                f"{data_folder}lda-gpt2_nt-arxiv-typ_p/arxiv{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-arxiv-typ_p/arxiv{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for wikitext and gpt2_nt-typ_p
-    elif dataset == 19 or dataset == 20:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-typ_p.json")
-        data_train_2 = load_wikitext(samples)
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 19:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(os.path.dirname(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(
-                    f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/wiki_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(
-                f"{data_folder}lda-gpt2_nt-wiki_nt-typ_p/wiki_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for gpt2_nt-typ_p and gpt2_nt-typ_p
-    elif dataset == 21 or dataset == 22:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt-typ_p.json")
-        data_train_2 = load_json(f"{data_folder}dataset2-gpt2-wiki_nt-typ_p.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 21:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(
-                os.path.dirname(
-                    f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(
-                    f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                    "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(
-                f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(
-                f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_1{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(
-                    f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(
-                    f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                    "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(
-                f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(
-                f"{data_folder}lda-gpt2_nt-gpt2_nt-typ_p/gpt2_nt_2{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-    # Create LDA Model for gpt2_nt and gpt2
-    elif dataset == 23 or dataset == 24:
-        data_train_1 = load_json(f"{data_folder}dataset1-gpt2-wiki_nt.json")
-        data_train_2 = load_json(f"{data_folder}dataset1-gpt2.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 23:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(
-                os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-gpt2/gpt2_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(f"{data_folder}lda-gpt2_nt-gpt2/gpt2_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2_nt-gpt2/gpt2_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(f"{data_folder}lda-gpt2_nt-gpt2/gpt2{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2_nt-gpt2/gpt2{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2_nt-gpt2/gpt2{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2_nt-gpt2/gpt2{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-    # Create LDA Model for wiki_nt and gpt2
-    elif dataset == 25 or dataset == 26:
-        data_train_1 = load_wikitext()
-        data_train_2 = load_json(f"{data_folder}dataset1-gpt2.json")
-        dictionary_1, corpus_1, dictionary_2, corpus_2 = tokenize_special(data_train_1, data_train_2, union)
-
-        set_seed(seed2)
-        if dataset == 25:
-            model_1 = train_lda(dictionary_1, corpus_1, topics)
-
-            os.makedirs(
-                os.path.dirname(
-                    f"{data_folder}lda-gpt2-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_1, file, indent=2)
-            dictionary_1.save(
-                f"{data_folder}lda-gpt2-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_1.save(f"{data_folder}lda-gpt2-wiki_nt/wiki_nt{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-        else:
-            model_2 = train_lda(dictionary_2, corpus_2, topics)
-
-            os.makedirs(
-                os.path.dirname(f"{data_folder}lda-gpt2-wiki_nt/gpt2{extra_folder}/{combi}/{topics}/corpus_{topics}"),
-                exist_ok=True)
-            with open(f"{data_folder}lda-gpt2-wiki_nt/gpt2{extra_folder}/{combi}/{topics}/corpus_{topics}",
-                      "w") as file:
-                json.dump(corpus_2, file, indent=2)
-            dictionary_2.save(f"{data_folder}lda-gpt2-wiki_nt/gpt2{extra_folder}/{combi}/{topics}/dictionary_{topics}")
-            model_2.save(f"{data_folder}lda-gpt2-wiki_nt/gpt2{extra_folder}/{combi}/{topics}/ldamodel_{topics}")
-
-
-main()
+if __name__ == "__main__":
+    main()
