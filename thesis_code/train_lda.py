@@ -91,7 +91,7 @@ def load_dataset(data_path, set_name, sampling_method):
     return docs
 
 
-def tokenize_preprocessing(docs, add_trigrams=True):
+def tokenize_text(docs, add_bigrams=True, add_trigrams=True):
     # Tokenize the documents.
     # Split the documents into tokens.
     tokenizer = RegexpTokenizer(r'\w+')
@@ -110,32 +110,39 @@ def tokenize_preprocessing(docs, add_trigrams=True):
     docs = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs]
 
     # Add bigrams to docs (only ones that appear 20 times or more).
-    bigram = Phrases(docs, min_count=5, threshold=10.0)
+    bigram = Phrases(docs, min_count=5, threshold=10.0) if add_bigrams or add_trigrams else None
 
     trigram = Phrases(bigram[docs], min_count=5, threshold=10.0) if add_trigrams else None
 
-    for idx in range(len(docs)):
-        doc = docs[idx]
-        bigrams = list()
-        trigrams = list()
-        for token in bigram[doc]:
-            if '_' in token:
-                # Token is a bigram, add to document.
-                bigrams.append(token)
-        if add_trigrams:
-            for token in trigram[bigram[doc]]:
-                cnt = token.count('_')
-                if cnt == 2:
-                    # Token is a trigram, add to document.
-                    trigrams.append(token)
+    if add_bigrams or add_trigrams:
+        for idx in range(len(docs)):
+            doc = docs[idx]
+            bigrams = list()
+            trigrams = list()
+            if add_bigrams:
+                for token in bigram[doc]:
+                    if '_' in token:
+                        # Token is a bigram, add to document.
+                        bigrams.append(token)
+            if add_trigrams:
+                for token in trigram[bigram[doc]]:
+                    cnt = token.count('_')
+                    if cnt == 2:
+                        # Token is a trigram, add to document.
+                        trigrams.append(token)
 
-        for token in bigrams:
-            docs[idx].append(token)
+            if add_bigrams:
+                for token in bigrams:
+                    docs[idx].append(token)
 
-        if add_trigrams:
-            for token in trigrams:
-                docs[idx].append(token)
+            if add_trigrams:
+                for token in trigrams:
+                    docs[idx].append(token)
 
+    return docs
+
+
+def tokenize_create_dictionary(docs):
     # Remove rare and common tokens.
     # Create a dictionary representation of the documents.
     dictionary = Dictionary(docs)
@@ -146,7 +153,10 @@ def tokenize_preprocessing(docs, add_trigrams=True):
     return docs, dictionary
 
 
-def tokenize_bow_single(docs, dictionary):
+def tokenize_bow_single(docs):
+    docs = tokenize_text(docs, add_bigrams=True, add_trigrams=True)
+    docs, dictionary = tokenize_create_dictionary(docs)
+
     # Bag-of-words representation of the documents.
     corpus = [dictionary.doc2bow(doc) for doc in docs]
     print('>> Number of unique tokens: %d' % len(dictionary))
@@ -156,8 +166,10 @@ def tokenize_bow_single(docs, dictionary):
 
 
 def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of dictionaries
-    docs_new_0, dic0 = tokenize_preprocessing(docs0)
-    docs_new_1, dic1 = tokenize_preprocessing(docs1)
+    docs_new_0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=True)
+    docs_new_1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=True)
+    docs_new_0, dic0 = tokenize_create_dictionary(docs_new_0)
+    docs_new_1, dic1 = tokenize_create_dictionary(docs_new_1)
 
     if union:
         transformer = dic0.merge_with(dic1)
