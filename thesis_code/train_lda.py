@@ -65,7 +65,7 @@ def load_json(filename):
 
 
 def load_dataset(data_path, set_name, sampling_method):
-    if sampling_method == "normal":
+    if sampling_method == "multinomial":
         sampling = ""
     else:
         sampling = "-" + sampling_method
@@ -232,7 +232,7 @@ def main():
             first: First corpus is used for lda model creation
             second: Second corpus is used for lda model creation
         Sampling method:
-            normal, typ_p, top_p
+            multinomial, typ_p, top_p
         Topic options:
             2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100, ...
         Merge technique:
@@ -242,7 +242,7 @@ def main():
             Model index when calculating the variance (changes the seed)
 
     Examples:
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt wiki_nt first normal 5 union
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt wiki_nt first multinomial 5 union
         python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 first typ_p 10 intersection 1
         python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 second typ_p 10 intersection 2
         python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2 arxiv first typ_p 10 intersection 3
@@ -272,15 +272,18 @@ def main():
         print(">> ERROR: undefined second input")
         return
 
+    if sampling not in ["multinomial", "typ_p", "top_p"]:
+        print(">> ERROR: undefined sampling input")
+        return
+
     folder_name = f"lda-{first}-{second}"
+
+    if sampling != "multinomial":
+        folder_name += "-" + sampling
 
     if first == second:
         first += "_1"
         second += "_2"
-
-    if sampling not in ["normal", "typ_p", "top_p"]:
-        print(">> ERROR: undefined sampling input")
-        return
 
     if num_topics <= 1:
         print(">> ERROR: undefined num_topics input")
