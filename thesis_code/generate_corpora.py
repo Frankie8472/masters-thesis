@@ -27,19 +27,29 @@ def create_corpus(
     Generates sequences/documents/a corpus for models with a language modeling head.
 
     Parameters:
-        corpus_size (`int`, *optional*, defaults to 1):
-            The corpus size to be generated (number of documents)
-        model_name (`str`, *optional*, defaults to "openai-gpt"):
+        tokenizer_name (`str`, *optional*, defaults to "gpt2
+            The name of the pre-trained tokenizer: openai-gpt, gpt2-small, gpt2, gpt2-large, gpt2-xl, transfo-xl-wt103, EleutherAI/gpt-neo-2.7B, ctrl
+        model_name (`str`, *optional*, defaults to "gpt2"):
             The model name of the pre-trained model: openai-gpt, gpt2-small, gpt2, gpt2-large, gpt2-xl, transfo-xl-wt103, EleutherAI/gpt-neo-2.7B, ctrl
         max_document_length (`int`, *optional*, defaults to None):
             The maximum document length, normally set to tokenizer.max_length
+        device (`str`, *optional*, defaults to "cpu"):
+            The device the computations commence "cpu" or "cuda"
+        corpus_size (`int`, *optional*, defaults to 1):
+            The corpus size to be generated (number of documents)
         tokenizer_model (`PreTrainedTokenizer`, *optional*, defaults to AutoTokenizer):
             The pre-trained tokenizer class
         lm_model (`PreTrainedModel`, *optional*, defaults to AutoModelForCausalLM):
             The pre-trained model class with language modeling head
-        device (`str`, *optional*, defaults to "cpu"):
-            The device the computations commence "cpu" or "cuda"
-
+        pad_token_id (`int`, *optional*, defaults to None)
+            Id of the padding token. Some models need the pad token set to the eos token (see hugging face documentation).
+        load_size (`int`, *optional*, defaults to 1)
+            Load size of how many documents can be calculated in the same iteration (depends on (GPU) memory and max_document_length)
+        top_p (`float`, *optional*, defaults to 1.0)
+        typ_p (`float`, *optional*, defaults to 1.0)
+            Multinomial sampling: top_p = 1.0, typ_p = 1.0
+            Top_p sampling: typ_p = 1.0, top_p = ]0.0, 1.0[
+            Typ_p sampling: top_p = 1.0, typ_p = ]0.0, 1.0[
     """
 
     if os.path.isfile(save_path):
@@ -73,8 +83,8 @@ def create_corpus(
             num_beams=1,                            # 1 deactivates beam_search
             temperature=1.0,                        # 1.0 deactivates temperature
             top_k=0,                                # 0 deactivates top_k sampling
-            top_p=top_p,                              # 1.0 deactivates top_p (nucleus) sampling  using 0.9
-            typical_p=typ_p,                          # 1.0 deactivates typical_p sampling        using 0.2
+            top_p=top_p,                            # 1.0 deactivates top_p (nucleus) sampling  using 0.9
+            typical_p=typ_p,                        # 1.0 deactivates typical_p sampling        using 0.2
             repetition_penalty=1.0,                 # 1.0 deactivates repetition_penalty
             pad_token_id=pad_token_id,              # For open-end generation set to eos_token_id
             #bos_token_id=bos_token_id,
@@ -82,7 +92,7 @@ def create_corpus(
             length_penalty=1.0,                     # 1.0 deactivates length_penalty
             no_repeat_ngram_size=0,                 # 0 deactivates no_repeat_ngram_size
             encoder_no_repeat_ngram_size=0,         # 0 deactivates encoder_no_repeat_ngram_size
-            num_return_sequences=step_size,       # The number of independently computed returned sequences for each element in the batch. No input means batch size of one.
+            num_return_sequences=step_size,         # The number of independently computed returned sequences for each element in the batch. No input means batch size of one.
             num_beam_groups=1,
             output_scores=False,                    # Will be important if you want the prediction scores!
         )
@@ -100,12 +110,12 @@ def create_corpus(
 def main():
     """
     Models:
-        1 - GPT2 - Normal sampling, trained on integrated wikitext
-        2 - GPT2 - normal sampling, trained by manually defining wikitext
-        3 - GPT2 - corpus 1 , normal sampling, trained by manually defining wikitext, without titles
-        4 - GPT2 - corpus 2 , normal sampling, trained by manually defining wikitext, without titles
-        5 - GPT2 - corpus 1, normal sampling, original model
-        6 - GPT2 - corpus 2, normal sampling, original model
+        1 - GPT2 - multinomial sampling, trained on integrated wikitext
+        2 - GPT2 - multinomial sampling, trained by manually defining wikitext
+        3 - GPT2 - corpus 1 , multinomial sampling, trained by manually defining wikitext, without titles
+        4 - GPT2 - corpus 2 , multinomial sampling, trained by manually defining wikitext, without titles
+        5 - GPT2 - corpus 1, multinomial sampling, original model
+        6 - GPT2 - corpus 2, multinomial sampling, original model
         7 - GPT2 - corpus 1 , top_p sampling, trained by manually defining wikitext, without titles
         8 - GPT2 - corpus 2 , top_p sampling, trained by manually defining wikitext, without titles
         9 - GPT2 - corpus 1 , typ_p sampling, trained by manually defining wikitext, without titles
@@ -131,7 +141,7 @@ def main():
 
     set_seed(42)
 
-    # GPT2 - Normal sampling, trained on integrated wikitext
+    # GPT2 - multinomial sampling, trained on integrated wikitext
     if model == 1:
         print(f"Entering model: {model}")
         create_corpus(
@@ -147,7 +157,7 @@ def main():
             load_size=load_size
         )
 
-    # GPT2 - normal sampling, trained by manually defining wikitext
+    # GPT2 - multinomial sampling, trained by manually defining wikitext
     elif model == 2:
         print(f"Entering model: {model}")
         create_corpus(
@@ -179,7 +189,7 @@ def main():
             load_size=load_size
         )
 
-    # GPT2 - corpus 2, normal sampling, trained by manually defining wikitext, without titles
+    # GPT2 - corpus 2, multinomial sampling, trained by manually defining wikitext, without titles
     elif model == 4:
         print(f"Entering model: {model}")
         set_seed(1337)
@@ -196,7 +206,7 @@ def main():
             load_size=load_size
         )
 
-    # GPT2 - corpus 1, normal sampling, original model
+    # GPT2 - corpus 1, multinomial sampling, original model
     elif model == 5:
         print(f"Entering model: {model}")
         create_corpus(
@@ -212,7 +222,7 @@ def main():
             load_size=load_size
         )
 
-    # GPT2 - corpus 2, normal sampling, original model
+    # GPT2 - corpus 2, multinomial sampling, original model
     elif model == 6:
         print(f"Entering model: {model}")
         set_seed(1337)
