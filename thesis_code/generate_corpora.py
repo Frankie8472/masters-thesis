@@ -90,7 +90,6 @@ def create_corpus(
 
     decoded_output = []
 
-    real_size = 0
     with tqdm(total=corpus_size) as pbar:
         for i in range(0, 4*corpus_size):
             encoded_output = model.generate(
@@ -118,18 +117,17 @@ def create_corpus(
 
             for j in range(load_size):
                 out_tmp = tokenizer.decode(encoded_output[j], skip_special_tokens=True)
-                if out_tmp != "" and real_size != corpus_size:
+                if out_tmp != "" and len(decoded_output) != corpus_size:
                     decoded_output.append(out_tmp)
-                    real_size += 1
                     pbar.update(1)
-                if real_size == corpus_size:
+                if len(decoded_output) == corpus_size:
                     break
 
-            if real_size == corpus_size:
+            if len(decoded_output) == corpus_size:
                 print(f">> Expected Size reached after {i}*{load_size} iterations")
                 break
 
-    if real_size != corpus_size:
+    if len(decoded_output) != corpus_size:
         print(">> ERROR: Expected Size not reached, to many empty strings")
         gc.collect()
         torch.cuda.empty_cache()
