@@ -2,9 +2,52 @@ import gc
 import json
 import os
 import sys
+import random
+import numpy as np
 import torch
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPT2Tokenizer, GPT2LMHeadModel, set_seed, TransfoXLTokenizer, TransfoXLLMHeadModel
+import pickle
+
+
+def get_state(cuda_device):
+    """
+    Helper function for reproducible behavior to set the state in `random`, `numpy`, `torch`.
+    Args:
+        cuda_device: The cuda device.
+    Returns:
+        random_state: The current state.
+        numpy_state: The current state.
+        torch_state: The current state.
+        cuda_state: The current state.
+    """
+    random_state = random.getstate()
+    numpy_state = np.random.get_state()
+    #numpy_state = (numpy_state[0], numpy_state[1].tolist())
+
+    torch_state = torch.get_rng_state()#.tolist()
+    cuda_state = torch.cuda.get_rng_state(cuda_device)#.tolist()
+    return [random_state, numpy_state, torch_state, cuda_state]
+
+
+def set_state(state, cuda_device):
+    """
+    Helper function for reproducible behavior to set the state in `random`, `numpy`, `torch`.
+
+    Args:
+        state: Array with the following entries
+            0: random_state: The state to set.
+            1: numpy_state: The state to set.
+            2: torch_state: The state to set.
+            3: cuda_state: The state to set.
+        cuda_device: The cuda device to set.
+    """
+    random_state, numpy_state, torch_state, cuda_state = state[0], state[1], state[2], state[3]
+    random.setstate(random_state)
+    np.random.set_state(numpy_state)
+    torch.set_rng_state(torch_state)
+    torch.cuda.set_rng_state(cuda_state, cuda_device)
+    return
 
 
 def create_corpus(
@@ -57,10 +100,24 @@ def create_corpus(
             Top_p sampling: typ_p = 1.0, top_p = ]0.0, 1.0[
             Typ_p sampling: top_p = 1.0, typ_p = ]0.0, 1.0[
     """
+    rng_path = save_path[:-5] + "_rng.pickle"
 
     if os.path.isfile(save_path):
-        print("ERROR: file already exist, please remove manually before running again.")
-        return
+        with open(save_path, 'r') as file:
+            decoded_output = json.load(file)
+            if len(decoded_output) >= corpus_size:
+                print(">> ERROR: File has already reached desired size")
+                return
+
+        if os.path.isfile(rng_path):
+            with open(rng_path, "rb") as file:
+                state = pickle.load(file)
+                set_state(state, device)
+        else:
+            print(">> ERROR: File exists but has no rng state file, therefore cannot be enhanced. Delete file for overwriting")
+            return
+    else:
+        decoded_output = []
 
     tokenizer = tokenizer_model.from_pretrained(tokenizer_name)
     model = lm_model.from_pretrained(model_name)
@@ -88,9 +145,7 @@ def create_corpus(
 
     model = model.to(device)
 
-    decoded_output = []
-
-    with tqdm(total=corpus_size) as pbar:
+    with tqdm(total=corpus_size - len(decoded_output)) as pbar:
         for i in range(0, 4*corpus_size):
             encoded_output = model.generate(
                 # all parameters have to be set as otherwise the config of the pretrained model will be taken
@@ -136,6 +191,9 @@ def create_corpus(
     with open(save_path, 'w') as file:
         json.dump(decoded_output, file, indent=2)
 
+    with open(rng_path, "wb") as file:
+        pickle.dump(get_state(device), file)
+
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -143,7 +201,7 @@ def create_corpus(
 def main():
     """
     Command:
-        python generate_corpora.py [data_path] [model] [sampling_method] [index]
+        python generate_corpora.py [data_path] [model] [sampling_method] [index] [corpus_size]
 
         Models:
             gpt2, gpt2-wiki_nt, gpt2-wiki, gpt2-wiki-integrated, trafo_xl, trafo_xl-wiki, trafo_xl-wiki-integrated, trafo_xl-wiki_nt
@@ -151,16 +209,17 @@ def main():
             multinomial, top_p, typ_p
         index:
             For different samples (changes the seed, 0 > 42, 1 > 1337)
+        corpus_size:
+            Number of documents you want in the corpus in total
 
     Run Example:
-        python generate_corpora.py /cluster/work/cotterell/knobelf/data/ gpt2-wiki_nt multinomial 0
+        python generate_corpora.py /cluster/work/cotterell/knobelf/data/ gpt2-wiki_nt multinomial 0 50000
     """
 
-    corpus_size = 100000
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    load_size = 100
+    load_size = 50
 
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 6:
         print("ERROR: Wrong input arguments")
         return
 
@@ -168,6 +227,7 @@ def main():
     model = sys.argv[2]
     sampling = sys.argv[3]
     index = int(sys.argv[4])
+    corpus_size = int(sys.argv[5])
 
     if data_folder_path[-1] != "/":
         data_folder_path += "/"
@@ -217,6 +277,7 @@ def main():
         tokenizer_model = GPT2Tokenizer
         lm_model = GPT2LMHeadModel
     elif model == "trafo_xl":
+        max_document_length = 1024
         tokenizer_name = "transfo-xl-wt103"
         model_path = "transfo-xl-wt103"
         bos_token_id = 'eos_token_id'
@@ -224,6 +285,7 @@ def main():
         tokenizer_model = TransfoXLTokenizer
         lm_model = TransfoXLLMHeadModel
     elif model == "trafo_xl-wiki" or model == "trafo_xl-wiki-integrated" or model == "trafo_xl-wiki_nt":
+        max_document_length = 1024
         tokenizer_name = "transfo-xl-wt103"
         model_path = f"{data_folder_path}model-{model}"
         bos_token_id = 'eos_token_id'
