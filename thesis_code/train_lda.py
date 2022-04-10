@@ -345,7 +345,7 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
         number_of_call=optimization_runs,
         model_runs=model_runs,
         random_state=seed,
-        save_models=True,
+        save_models=False,
         save_path=file_path
     )
 
