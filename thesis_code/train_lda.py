@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 import random
@@ -6,12 +7,12 @@ import sys
 from pathlib import Path
 import re
 import json
+from gensim.utils import SaveLoad
 from pprint import pprint
 from gensim.models import Phrases
 from gensim.corpora import Dictionary
 from gensim.models import LdaMulticore
 from nltk import WordNetLemmatizer, RegexpTokenizer
-from transformers import set_seed
 
 
 def load_wikitext(path, samples=100000):
@@ -30,26 +31,10 @@ def load_arxiv(path, samples=100000):
                 yield line
 
     metadata = get_metadata()
-    size = 0
-    for paper in metadata:
-        size += 1
-    choices = random.choices(list(np.arange(size)), k=samples)
-    choices.sort()
-    metadata = get_metadata()
-    step = 0
-    idx = 0
     corpus = []
     for paper in metadata:
-        if idx >= samples:
-            break
-        if step == choices[idx]:
-            if step != choices[idx+1]:
-                step += 1
-            corpus.append(json.loads(paper)['abstract'])
-            idx += 1
-        else:
-            step += 1
-    return corpus
+        corpus.append(json.loads(paper)['abstract'])
+    return random.choices(corpus, k=samples)
 
 
 def load_json_choices(filename, samples=100000):
@@ -58,13 +43,16 @@ def load_json_choices(filename, samples=100000):
     return random.choices(train_articles, k=samples)
 
 
-def load_json(filename):
+def load_json(filename, samples=100000):
     with open(filename, 'r') as file:
         train_articles = json.load(file)
-    return train_articles
+    return train_articles[:min(samples, len(train_articles)-1)]
 
 
-def load_dataset(data_path, set_name, sampling_method):
+def load_dataset(data_path, set_name, sampling_method, samples=100000):
+    random.seed(42)
+    np.random.seed(42)
+
     if sampling_method == "multinomial":
         sampling = ""
     else:
@@ -75,18 +63,20 @@ def load_dataset(data_path, set_name, sampling_method):
         dataset = "dataset2"
 
     docs = None
-    if set_name == "arxiv":
+    if "arxiv" in set_name:
         if set_name[-2:] == "_2":
-            set_seed(1337)
-        docs = load_arxiv(data_path)
-    elif set_name == "wiki_nt":
+            random.seed(1337)
+            np.random.seed(1337)
+        docs = load_arxiv(data_path, samples)
+    elif "wiki_nt" in set_name:
         if set_name[-2:] == "_2":
-            set_seed(1337)
-        docs = load_wikitext(data_path)
-    elif set_name == "gpt2_nt":
-        docs = load_json(f"{data_path}{dataset}-gpt2-wiki_nt{sampling}.json")
-    elif set_name == "gpt2":
-        docs = load_json(f"{data_path}{dataset}-gpt2{sampling}.json")
+            random.seed(1337)
+            np.random.seed(1337)
+        docs = load_wikitext(data_path, samples)
+    elif "gpt2_nt" in set_name:
+        docs = load_json(f"{data_path}{dataset}-gpt2-wiki_nt{sampling}.json", samples)
+    elif "gpt2" in set_name:
+        docs = load_json(f"{data_path}{dataset}-gpt2.json", samples)
 
     return docs
 
@@ -110,9 +100,9 @@ def tokenize_text(docs, add_bigrams=True, add_trigrams=True):
     docs = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs]
 
     # Add bigrams to docs (only ones that appear 20 times or more).
-    bigram = Phrases(docs, min_count=5, threshold=10.0) if add_bigrams or add_trigrams else None
+    bigram = Phrases(docs, min_count=5, threshold=100) if add_bigrams or add_trigrams else None
 
-    trigram = Phrases(bigram[docs], min_count=5, threshold=10.0) if add_trigrams else None
+    trigram = Phrases(bigram[docs], min_count=5, threshold=100) if add_trigrams else None
 
     if add_bigrams or add_trigrams:
         for idx in range(len(docs)):
@@ -145,31 +135,56 @@ def tokenize_text(docs, add_bigrams=True, add_trigrams=True):
 def tokenize_create_dictionary(docs):
     # Remove rare and common tokens.
     # Create a dictionary representation of the documents.
-    dictionary = Dictionary(docs)
+    dic = Dictionary(docs)
 
     # Filter out words that occur less than 20 documents, or more than 50% of the documents.
-    dictionary.filter_extremes(no_below=20, no_above=0.5)
+    dic.filter_extremes(no_below=20, no_above=0.5)
 
-    return docs, dictionary
+    return docs, dic
 
 
-def tokenize_bow_single(docs):
+def split(a, n):
+    k, m = divmod(len(a), n)
+    return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+
+
+def filter_docs(docs, dic):
+    for i, _ in enumerate(docs):
+        docs[i] = [word for word in docs[i] if word in dic]
+    return docs
+
+
+def tokenize_bow_single(docs, workers=None, return_filtered_docs=False):
     docs = tokenize_text(docs, add_bigrams=True, add_trigrams=True)
-    docs, dictionary = tokenize_create_dictionary(docs)
+    docs, dic = tokenize_create_dictionary(docs)
+
+    if return_filtered_docs:
+        import pathos
+        from pathos.multiprocessing import ProcessingPool as Pool
+
+        dictionary = list(dic.token2id.keys())
+        cnt = pathos.helpers.cpu_count() if workers is None else workers
+        docs_split = list(split(docs, cnt))
+        pool = Pool(ncpus=cnt)
+        docs_split = pool.map(lambda x: filter_docs(x, dictionary), docs_split)
+        docs = list(itertools.chain.from_iterable(docs_split))
 
     # Bag-of-words representation of the documents.
-    corpus = [dictionary.doc2bow(doc) for doc in docs]
-    print('>> Number of unique tokens: %d' % len(dictionary))
+    corpus = [dic.doc2bow(doc) for doc in docs]
+    print('>> Number of unique tokens: %d' % len(dic))
     print('>> Number of documents: %d' % len(corpus))
 
-    return dictionary, corpus
+    return docs, dic, corpus
 
 
-def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of dictionaries
-    docs_new_0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=True)
-    docs_new_1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=True)
-    docs_new_0, dic0 = tokenize_create_dictionary(docs_new_0)
-    docs_new_1, dic1 = tokenize_create_dictionary(docs_new_1)
+def tokenize_bow_dual(docs0, docs1, union=False, workers=None, return_filtered_docs=False):
+    assert docs0 is not None
+    assert docs1 is not None
+
+    docs0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=True)
+    docs1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=True)
+    docs0, dic0 = tokenize_create_dictionary(docs0)
+    docs1, dic1 = tokenize_create_dictionary(docs1)
 
     if union:
         transformer = dic0.merge_with(dic1)
@@ -183,6 +198,29 @@ def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of di
 
     dic1 = dic0
 
+    assert len(docs0) == len(docs1), ">> ERROR: Corpus length not the same"
+
+    corpus_length = len(docs0)
+
+    if return_filtered_docs:
+        import pathos
+        from pathos.multiprocessing import ProcessingPool as Pool
+
+        dictionary = list(dic0.token2id.keys())
+        cnt = pathos.helpers.cpu_count() if workers is None else workers
+        if cnt % 2:
+            cnt -= 1
+        half = int(cnt / 2)
+        docs_split = list(split(docs0, half))
+        docs_split += list(split(docs1, half))
+        pool = Pool(ncpus=cnt)
+        docs_split = pool.map(lambda x: filter_docs(x, dictionary), docs_split)
+        docs0 = list(itertools.chain.from_iterable(docs_split[:half]))
+        docs1 = list(itertools.chain.from_iterable(docs_split[half:]))
+
+        assert len(docs0) == len(docs1), f">> ERROR: Corpus length not the same anymore; {len(docs0)} | {len(docs1)}"
+        assert len(docs0) == corpus_length, f">> ERROR: Corpus length not the same as before; {corpus_length} -> {len(docs0)}"
+
     # Bag-of-words representation of the documents.
     cor0 = [dic0.doc2bow(doc) for doc in docs0]
     cor1 = [dic1.doc2bow(doc) for doc in docs1]
@@ -191,19 +229,29 @@ def tokenize_bow_dual(docs0, docs1, union=False):  # False is intersection of di
     print('>> Number of documents of cor0: %d' % len(cor0))
     print('>> Number of documents of cor1: %d' % len(cor1))
 
-    return dic0, cor0, dic1, cor1
+    return docs0, dic0, cor0, docs1, dic1, cor1
 
 
-def train_lda(dictionary, corpus, topics):
+def train_topic_model(docs, dictionary, corpus, num_topics, seed, file_path, data_path, topic_model):
+    if topic_model == "classic_lda":
+        train_classic_lda(dictionary, corpus, num_topics, seed, file_path)
+    elif topic_model == "neural_lda":
+        train_neural_lda(docs, dictionary, num_topics, seed, file_path, data_path)
+    else:
+        raise ValueError("wrong topic model classifier")
+    return
+
+
+def train_classic_lda(dictionary, corpus, num_topics, seed, file_path):
+    random.seed(seed)
+    np.random.seed(seed)
+
     # Train LDA model.
-    # TODO: Add neural topic model
-
     # Set training parameters.
-    num_topics = topics
     chunksize = 1000000
     passes = 30
     iterations = 500
-    eval_every = 1  # Don't evaluate model perplexity, takes too much time.
+    eval_every = 0  # 1 - Don't evaluate model perplexity, takes too much time.
 
     # Make a index to word dictionary.
     temp = dictionary[0]  # This is only to "load" the dictionary.
@@ -213,33 +261,140 @@ def train_lda(dictionary, corpus, topics):
         corpus=corpus,
         num_topics=num_topics,
         id2word=id2word,
-        workers=48,
+        workers=3,
         chunksize=chunksize,
         passes=passes,
         alpha='symmetric',
         eta='auto',
         eval_every=eval_every,
         iterations=iterations,
+        random_state=seed
     )
 
     top_topics = model.top_topics(corpus)
+    model.save(f"{file_path}ldamodel_{num_topics}")
 
     # Average topic coherence is the sum of topic coherences of all topics, divided by the number of topics.
     avg_topic_coherence = sum([t[1] for t in top_topics]) / num_topics
     print('>> Average topic coherence: %.4f.' % avg_topic_coherence)
 
     pprint(top_topics)
+    return
 
-    return model
+
+def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_path):
+    # Train neural LDA model.
+    import torch
+    from octis.dataset.dataset import Dataset
+    from octis.models.NeuralLDA import NeuralLDA
+    from skopt.space.space import Real, Categorical, Integer
+    from octis.evaluation_metrics.coherence_metrics import Coherence
+    from octis.optimization.optimizer import Optimizer
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    dataset_object = Dataset(
+        corpus=documents,
+        vocabulary=list(dictionary.token2id.keys()),
+        metadata=dict()
+    )
+
+    model = NeuralLDA(
+        num_topics=num_topics,
+        activation='softplus',
+        dropout=0.3,
+        learn_priors=True,
+        batch_size=64,
+        lr=2e-3,
+        momentum=0.99,
+        solver='adam',
+        num_epochs=100,
+        reduce_on_plateau=False,
+        prior_mean=0.0,
+        prior_variance=None,
+        num_layers=2,
+        num_neurons=100,
+        num_samples=10,
+        use_partitions=False
+    )
+
+    search_space = {
+        'dropout': Real(0.0, 0.95),
+        'activation': Categorical({'softplus', 'relu', 'sigmoid', 'tanh', 'rrelu', 'elu'}),
+        'num_layers': Integer(1, 20),
+        'num_neurons': Categorical({50, 100, 200, 500, 1000}),
+        'num_samples': Categorical({10, 20, 50, 100})
+    }
+
+    coherence = Coherence(texts=dataset_object.get_corpus(), measure='c_v')
+
+    optimization_runs = len(search_space.keys()) * 15
+    model_runs = 10
+
+    optimizer = Optimizer()
+    
+    optimization_result = optimizer.optimize(
+        model=model,
+        dataset=dataset_object,
+        metric=coherence,
+        search_space=search_space,
+        extra_metrics=None,
+        number_of_call=optimization_runs,
+        model_runs=model_runs,
+        random_state=seed,
+        save_models=True,
+        save_path=file_path
+    )
+
+    optimization_result.save_to_csv(f"{file_path}results_neuralLDA.csv")
+
+    # model.train_model(dataset_object)
+    # model.model.save(file_path)
+    return
+
+
+def save_data(file_path, num_topics, dic=None, cor=None, docs=None, ):
+    os.makedirs(os.path.dirname(f"{file_path}dictionary_{num_topics}"), exist_ok=True)
+    docs_path = f"{file_path}documents_{num_topics}"
+    dic_path = f"{file_path}dictionary_{num_topics}"
+    cor_path = f"{file_path}corpus_{num_topics}"
+
+    if dic is not None:
+        dic.save(dic_path)
+    if cor is not None:
+        with open(cor_path, 'w') as file:
+            json.dump(cor, file)
+    if docs is not None:
+        with open(docs_path, 'w') as file:
+            json.dump(docs, file)
+
+
+def load_data(docs_path=None, dic_path=None, cor_path=None):
+    documents = dictionary = corpus = None
+    if dic_path is not None:
+        dictionary = SaveLoad.load(dic_path)
+    if cor_path is not None:
+        with open(cor_path, 'r') as file:
+            corpus = json.load(file)
+    if docs_path is not None:
+        with open(docs_path, 'r') as file:
+            documents = json.load(file)
+
+    return documents, dictionary, corpus
 
 
 def main():
     """
     Command:
-        python train_lda.py [data_path] [first corpus] [second corpus] [focus] [sampling method] [number of topics] [merge technique] [variance index]
+        python train_lda.py [data_path] [topic_model_type] [first_corpus] [second_corpus] [focus] [sampling_method] [number_of_topics] [merge_technique] [corpus_size] [variance_index]
 
         Corpus Options (always use gpt2_nt, gpt2 or wiki first, in that order (convention)):
             gpt2_nt, gpt2, wiki_nt, arxiv
+        Topic Model Type:
+            classic_lda, neural_lda
         Focus options:
             first: First corpus is used for lda model creation
             second: Second corpus is used for lda model creation
@@ -250,45 +405,48 @@ def main():
         Merge technique:
             union: Unionize dictionaries
             intersection: Intersect dictionaries
+        Corpus size:
+            Int > 0 and < 100'000
         Variance index:
             Model index when calculating the variance (changes the seed)
 
     Examples:
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt wiki_nt first multinomial 5 union
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 first typ_p 10 intersection 1
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2_nt gpt2 second typ_p 10 intersection 2
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ gpt2 arxiv first typ_p 10 intersection 3
-        python train_lda.py /cluster/work/cotterell/knobelf/data/ wiki_nt arxiv first typ_p 10 intersection 4
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ classic_lda gpt2_nt wiki_nt first multinomial 5 union 10000
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ classic_lda gpt2_nt gpt2 first typ_p 10 intersection 1 100000
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ classic_lda gpt2_nt gpt2 second typ_p 10 intersection 2 10000
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ classic_lda gpt2 arxiv first typ_p 10 intersection 3 1000
+        python train_lda.py /cluster/work/cotterell/knobelf/data/ classic_lda wiki_nt arxiv first typ_p 10 intersection 4 10000
 
     """
-    if len(sys.argv) < 8:
-        print(">> ERROR: Incorrect number of input arguments")
-        return
+    assert len(sys.argv) >= 10, ">> ERROR: Incorrect number of input arguments"
 
     data_path = sys.argv[1]
-    first = sys.argv[2]
-    second = sys.argv[3]
-    focus = sys.argv[4]
-    sampling = sys.argv[5]
-    num_topics = int(sys.argv[6])
-    combi = sys.argv[7]
+    topic_model = sys.argv[2]
+    first = sys.argv[3]
+    second = sys.argv[4]
+    focus = sys.argv[5]
+    sampling = sys.argv[6]
+    num_topics = int(sys.argv[7])
+    combi = sys.argv[8]
+    samples = int(sys.argv[9])
+
+    assert 100000 >= samples > 0, ">> ERROR: invalid sample size"
 
     if data_path[-1] != "/":
         data_path += "/"
 
-    if first not in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"]:
-        print(">> ERROR: undefined first input")
-        return
+    assert first in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"], ">> ERROR: undefined first input"
+    assert second in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"], ">> ERROR: undefined second input"
+    assert sampling in ["multinomial", "typ_p", "top_p"], ">> ERROR: undefined sampling input"
 
-    if second not in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"]:
-        print(">> ERROR: undefined second input")
-        return
-
-    if sampling not in ["multinomial", "typ_p", "top_p"]:
-        print(">> ERROR: undefined sampling input")
-        return
-
-    folder_name = f"lda-{first}-{second}"
+    if topic_model == "classic_lda":
+        return_filtered_docs = True
+        folder_name = f"lda-{first}-{second}"
+    elif topic_model == "neural_lda":
+        return_filtered_docs = True
+        folder_name = f"nlda-{first}-{second}"
+    else:
+        raise AssertionError(f">> ERROR: undefinded topic_model")
 
     if sampling != "multinomial":
         folder_name += "-" + sampling
@@ -297,54 +455,66 @@ def main():
         first += "_1"
         second += "_2"
 
-    if num_topics <= 1:
-        print(">> ERROR: undefined num_topics input")
-        return
+    assert num_topics > 1, ">> ERROR: undefined num_topics input"
 
     if combi == "intersection":
         union = False
     elif combi == "union":
         union = True
     else:
-        print(">> ERROR: undefined combi input")
-        return
+        raise AssertionError(">> ERROR: undefined combi input")
 
-    set_seed(42)
-    docs1 = load_dataset(data_path, first, sampling)
-    docs2 = load_dataset(data_path, second, sampling)
-    set_seed(42)
+    seed = 42
+    index = ""
+    if len(sys.argv) == 11:
+        var_idx = int(sys.argv[10])
+        assert int(sys.argv[10]) > 0, ">> ERROR: undefinded variation index"
+        index = f"{var_idx}/"
+        seed = 42 + 7 * var_idx
+    print(f">> SEED for topic model generation: {seed}")
 
-    dic1, cor1, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union)
+    lda_file_path_first = f"{data_path}{folder_name}/{first}/{combi}/{num_topics}/{index}"
+    lda_file_path_second = f"{data_path}{folder_name}/{second}{index}/{combi}/{num_topics}/{index}"
+
+    file_path_first = f"{data_path}{folder_name}/{first}/{combi}/{num_topics}/"
+    file_path_second = f"{data_path}{folder_name}/{second}/{combi}/{num_topics}/"
 
     if focus == "first":
-        model_name = first
-        dictionary = dic1
-        corpus = cor1
+        file_path = file_path_first
+        lda_file_path = lda_file_path_first
     elif focus == "second":
-        model_name = second
-        dictionary = dic2
-        corpus = cor2
+        file_path = file_path_second
+        lda_file_path = lda_file_path_second
     else:
-        print(">> ERROR: undefined focus input")
-        return
+        raise AssertionError(">> ERROR: undefined focus input")
 
-    index = ""
-    if len(sys.argv) == 9:
-        index = "/" + sys.argv[8]
-        seed = 42 + 7**int(index[1:])
-        set_seed(seed)
-        print(f">> SEED changing to: {seed}")
+    docs_path = f"{file_path}documents_{num_topics}"
+    dic_path = f"{file_path}dictionary_{num_topics}"
+    cor_path = f"{file_path}corpus_{num_topics}"
 
+    random.seed(42)
+    np.random.seed(42)
+
+    if not os.path.exists(dic_path):
+        docs1 = load_dataset(data_path, first, sampling, samples)
+        docs2 = load_dataset(data_path, second, sampling, samples)
+        assert docs1 is not None
+        assert docs2 is not None
+
+        random.seed(42)
+        np.random.seed(42)
+
+        docs1, dic1, cor1, docs2, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union, workers=7, return_filtered_docs=return_filtered_docs)
+
+        save_data(file_path_first, num_topics, dic=dic1, docs=docs1, cor=cor1)
+        save_data(file_path_second, num_topics, dic=dic2, docs=docs2, cor=cor2)
+
+    documents, dictionary, corpus = load_data(docs_path=docs_path, dic_path=dic_path, cor_path=cor_path)
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
-    model = train_lda(dictionary, corpus, num_topics)
 
-    file_path = f"{data_path}{folder_name}/{model_name}{index}/{combi}/{num_topics}/"
-
-    os.makedirs(os.path.dirname(f"{file_path}corpus_{num_topics}"), exist_ok=True)
-    with open(f"{file_path}corpus_{num_topics}", "w") as file:
-        json.dump(corpus, file, indent=2)
-    dictionary.save(f"{file_path}dictionary_{num_topics}")
-    model.save(f"{file_path}ldamodel_{num_topics}")
+    os.makedirs(os.path.dirname(lda_file_path), exist_ok=True)
+    train_topic_model(documents, dictionary, corpus, num_topics, seed, lda_file_path, data_path, topic_model)
+    return
 
 
 if __name__ == "__main__":
