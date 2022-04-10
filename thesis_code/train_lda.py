@@ -473,11 +473,11 @@ def main():
         seed = 42 + 7 * var_idx
     print(f">> SEED for topic model generation: {seed}")
 
-    lda_file_path_first = f"{data_path}{folder_name}/{first}/{combi}/{num_topics}/{index}"
-    lda_file_path_second = f"{data_path}{folder_name}/{second}{index}/{combi}/{num_topics}/{index}"
+    file_path_first = f"{data_path}{samples}/{folder_name}/{first}/{combi}/{num_topics}/"
+    file_path_second = f"{data_path}{samples}/{folder_name}/{second}/{combi}/{num_topics}/"
 
-    file_path_first = f"{data_path}{folder_name}/{first}/{combi}/{num_topics}/"
-    file_path_second = f"{data_path}{folder_name}/{second}/{combi}/{num_topics}/"
+    lda_file_path_first = f"{file_path_first}{index}"
+    lda_file_path_second = f"{file_path_second}{index}"
 
     if focus == "first":
         file_path = file_path_first
