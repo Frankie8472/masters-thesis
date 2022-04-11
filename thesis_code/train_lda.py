@@ -455,7 +455,7 @@ def main():
         first += "_1"
         second += "_2"
 
-    assert num_topics > 1, ">> ERROR: undefined num_topics input"
+    assert num_topics >= 1, ">> ERROR: undefined num_topics input"
 
     if combi == "intersection":
         union = False
@@ -473,11 +473,11 @@ def main():
         seed = 42 + 7 * var_idx
     print(f">> SEED for topic model generation: {seed}")
 
-    file_path_first = f"{data_path}{samples}/{folder_name}/{first}/{combi}/{num_topics}/"
-    file_path_second = f"{data_path}{samples}/{folder_name}/{second}/{combi}/{num_topics}/"
+    file_path_first = f"{data_path}{samples}/{folder_name}/{first}/{combi}/"
+    file_path_second = f"{data_path}{samples}/{folder_name}/{second}/{combi}/"
 
-    lda_file_path_first = f"{file_path_first}{index}"
-    lda_file_path_second = f"{file_path_second}{index}"
+    lda_file_path_first = f"{file_path_first}{num_topics}/{index}"
+    lda_file_path_second = f"{file_path_second}{num_topics}/{index}"
 
     if focus == "first":
         file_path = file_path_first
@@ -485,15 +485,20 @@ def main():
     elif focus == "second":
         file_path = file_path_second
         lda_file_path = lda_file_path_second
+    elif focus == "tokenization":
+        file_path = file_path_first
+        lda_file_path = ""
     else:
         raise AssertionError(">> ERROR: undefined focus input")
 
-    docs_path = f"{file_path}documents_{num_topics}"
-    dic_path = f"{file_path}dictionary_{num_topics}"
-    cor_path = f"{file_path}corpus_{num_topics}"
+    docs_path = f"{file_path}documents"
+    dic_path = f"{file_path}dictionary"
+    cor_path = f"{file_path}corpus"
 
     random.seed(42)
     np.random.seed(42)
+
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
 
     if not os.path.exists(dic_path):
         docs1 = load_dataset(data_path, first, sampling, samples)
@@ -510,8 +515,9 @@ def main():
         save_data(file_path_second, num_topics, dic=dic2, docs=docs2, cor=cor2)
 
     documents, dictionary, corpus = load_data(docs_path=docs_path, dic_path=dic_path, cor_path=cor_path)
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
 
+    if num_topics == 1:
+        return
     os.makedirs(os.path.dirname(lda_file_path), exist_ok=True)
     train_topic_model(documents, dictionary, corpus, num_topics, seed, lda_file_path, data_path, topic_model)
     return
