@@ -103,9 +103,9 @@ def tokenize_text(docs, add_bigrams=True, add_trigrams=True):
     docs = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs]
 
     # Add bigrams to docs (only ones that appear 20 times or more).
-    bigram = Phrases(docs, min_count=5, threshold=100) if add_bigrams or add_trigrams else None
+    bigram = Phrases(docs, min_count=5, threshold=10) if add_bigrams or add_trigrams else None
 
-    trigram = Phrases(bigram[docs], min_count=5, threshold=100) if add_trigrams else None
+    trigram = Phrases(bigram[docs], min_count=5, threshold=10) if add_trigrams else None
 
     if add_bigrams or add_trigrams:
         for idx in range(len(docs)):
