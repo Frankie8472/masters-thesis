@@ -359,11 +359,11 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
     return
 
 
-def save_data(file_path, num_topics, dic=None, cor=None, docs=None, ):
-    os.makedirs(os.path.dirname(f"{file_path}dictionary_{num_topics}"), exist_ok=True)
-    docs_path = f"{file_path}documents_{num_topics}"
-    dic_path = f"{file_path}dictionary_{num_topics}"
-    cor_path = f"{file_path}corpus_{num_topics}"
+def save_data(file_path, dic=None, cor=None, docs=None, ):
+    os.makedirs(os.path.dirname(f"{file_path}dictionary"), exist_ok=True)
+    docs_path = f"{file_path}documents"
+    dic_path = f"{file_path}dictionary"
+    cor_path = f"{file_path}corpus"
 
     if dic is not None:
         dic.save(dic_path)
@@ -509,8 +509,8 @@ def main():
 
         docs1, dic1, cor1, docs2, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union, workers=7, return_filtered_docs=True)
 
-        save_data(file_path_first, num_topics, dic=dic1, docs=docs1, cor=cor1)
-        save_data(file_path_second, num_topics, dic=dic2, docs=docs2, cor=cor2)
+        save_data(file_path_first, dic=dic1, docs=docs1, cor=cor1)
+        save_data(file_path_second, dic=dic2, docs=docs2, cor=cor2)
 
     documents, dictionary, corpus = load_data(docs_path=docs_path, dic_path=dic_path, cor_path=cor_path)
 
