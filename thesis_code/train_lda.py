@@ -507,7 +507,7 @@ def main():
         random.seed(42)
         np.random.seed(42)
 
-        docs1, dic1, cor1, docs2, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union, workers=7, return_filtered_docs=return_filtered_docs)
+        docs1, dic1, cor1, docs2, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union, workers=7, return_filtered_docs=True)
 
         save_data(file_path_first, num_topics, dic=dic1, docs=docs1, cor=cor1)
         save_data(file_path_second, num_topics, dic=dic2, docs=docs2, cor=cor2)
