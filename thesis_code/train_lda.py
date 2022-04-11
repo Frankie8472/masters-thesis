@@ -17,7 +17,7 @@ from nltk import WordNetLemmatizer, RegexpTokenizer
 
 def load_wikitext(path, samples=100000):
     heading_pattern = '( \n [=\s].*[=\s] \n)'
-    train_data = Path(f'{path}data_wikitext-103-raw/wiki.train.raw').read_text(encoding='utf-8')
+    train_data = Path(f'{path}datasets/data_wikitext-103-raw/wiki.train.raw').read_text(encoding='utf-8')
     train_split = re.split(heading_pattern, train_data)
     train_headings = [x[7:-7] for x in train_split[1::2]]
     train_articles = [x for x in train_split[2::2]]
@@ -26,7 +26,7 @@ def load_wikitext(path, samples=100000):
 
 def load_arxiv(path, samples=100000):
     def get_metadata():
-        with open(f'{path}data_arxiv-metadata-oai-snapshot.json', 'r') as f:
+        with open(f'{path}datasets/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
             for line in f:
                 yield line
 
@@ -74,10 +74,13 @@ def load_dataset(data_path, set_name, sampling_method, samples=100000):
             np.random.seed(1337)
         docs = load_wikitext(data_path, samples)
     elif "gpt2_nt" in set_name:
-        docs = load_json(f"{data_path}{dataset}-gpt2-wiki_nt{sampling}.json", samples)
+        docs = load_json(f"{data_path}datasets/{dataset}-gpt2-wiki_nt{sampling}.json", samples)
     elif "gpt2" in set_name:
-        docs = load_json(f"{data_path}{dataset}-gpt2.json", samples)
-
+        docs = load_json(f"{data_path}datasets/{dataset}-gpt2.json", samples)
+    elif "trafo_xl_nt" in set_name:
+        docs = load_json(f"{data_path}datasets/{dataset}-trafo_xl-wiki_nt{sampling}.json", samples)
+    elif "trafo_xl" in set_name:
+        docs = load_json(f"{data_path}datasets/{dataset}-trafo_xl.json", samples)
     return docs
 
 
@@ -392,7 +395,7 @@ def main():
         python train_lda.py [data_path] [topic_model_type] [first_corpus] [second_corpus] [focus] [sampling_method] [number_of_topics] [merge_technique] [corpus_size] [variance_index]
 
         Corpus Options (always use gpt2_nt, gpt2 or wiki first, in that order (convention)):
-            gpt2_nt, gpt2, wiki_nt, arxiv
+            gpt2_nt, gpt2, trafo_xl_nt, trafo_xl, wiki_nt, arxiv
         Topic Model Type:
             classic_lda, neural_lda
         Focus options:
@@ -435,19 +438,14 @@ def main():
     if data_path[-1] != "/":
         data_path += "/"
 
-    assert first in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"], ">> ERROR: undefined first input"
-    assert second in ["gpt2", "gpt2_nt", "wiki_nt", "arxiv"], ">> ERROR: undefined second input"
+    assert first in ["gpt2_nt", "gpt2", "trafo_xl_nt", "trafo_xl", "wiki_nt", "arxiv"], ">> ERROR: undefined first input"
+    assert second in ["gpt2_nt", "gpt2", "trafo_xl_nt", "trafo_xl", "wiki_nt", "arxiv"], ">> ERROR: undefined second input"
     assert sampling in ["multinomial", "typ_p", "top_p"], ">> ERROR: undefined sampling input"
 
-    if topic_model == "classic_lda":
-        return_filtered_docs = True
-        folder_name = f"lda-{first}-{second}"
-    elif topic_model == "neural_lda":
-        return_filtered_docs = True
-        folder_name = f"nlda-{first}-{second}"
-    else:
+    if topic_model not in ["classic_lda", "neural_lda"]:
         raise AssertionError(f">> ERROR: undefinded topic_model")
 
+    folder_name = f"{first}-{second}"
     if sampling != "multinomial":
         folder_name += "-" + sampling
 
@@ -476,8 +474,8 @@ def main():
     file_path_first = f"{data_path}{samples}/{folder_name}/{first}/{combi}/"
     file_path_second = f"{data_path}{samples}/{folder_name}/{second}/{combi}/"
 
-    lda_file_path_first = f"{file_path_first}{num_topics}/{index}"
-    lda_file_path_second = f"{file_path_second}{num_topics}/{index}"
+    lda_file_path_first = f"{file_path_first}{topic_model}/{num_topics}/{index}"
+    lda_file_path_second = f"{file_path_second}{topic_model}/{num_topics}/{index}"
 
     if focus == "first":
         file_path = file_path_first
