@@ -100,7 +100,10 @@ def create_corpus(
             Top_p sampling: typ_p = 1.0, top_p = ]0.0, 1.0[
             Typ_p sampling: top_p = 1.0, typ_p = ]0.0, 1.0[
     """
-    rng_path = save_path[:-5] + "_rng.pickle"
+    split = save_path.split('/')
+    rng_path = '/'.join(split[:-1])+f"/rng/{split[-1][:-5]}_rng.pickle"
+
+    os.makedirs(os.path.dirname(rng_path), exist_ok=True)
 
     if os.path.isfile(save_path):
         with open(save_path, 'r') as file:
@@ -232,7 +235,7 @@ def main():
     if data_folder_path[-1] != "/":
         data_folder_path += "/"
 
-    dataset_path = data_folder_path
+    dataset_path = data_folder_path + "datasets/"
     if index == 0:
         dataset_path += "dataset1-"
         set_seed(42)
