@@ -14,6 +14,19 @@ from gensim.models import Phrases
 from gensim.corpora import Dictionary
 from gensim.models import LdaMulticore
 from nltk import WordNetLemmatizer, RegexpTokenizer
+import _pickle as cPickle
+import bz2
+
+
+def compressed_pickle(title, data):
+    with bz2.BZ2File(title + ".pbz2", "w") as f:
+        cPickle.dump(data, f)
+
+
+def decompress_pickle(file):
+    data = bz2.BZ2File(file + ".pbz2", "rb")
+    data = cPickle.load(data)
+    return data
 
 
 def load_wikitext(path, samples=100000):
@@ -358,8 +371,7 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
         optimization_result.save_to_csv(f"{file_path}results_neuralLDA.csv")
     else:
         model.train_model(dataset_object)
-        with open(f"{file_path}model.pickle", "wb") as file:
-            pickle.dump(model, file)
+        compressed_pickle(f"{file_path}model", model)
     return
 
 
