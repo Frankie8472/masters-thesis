@@ -60,7 +60,7 @@ def load_json_choices(filename, samples=100000):
 def load_json(filename, samples=100000):
     with open(filename, 'r') as file:
         train_articles = json.load(file)
-    return train_articles[:min(samples, len(train_articles)-1)]
+    return train_articles[:min(samples, len(train_articles))]
 
 
 def load_dataset(data_path, set_name, sampling_method, samples=100000):
@@ -95,6 +95,8 @@ def load_dataset(data_path, set_name, sampling_method, samples=100000):
         docs = load_json(f"{data_path}datasets/{dataset}-trafo_xl-wiki_nt{sampling}.json", samples)
     elif "trafo_xl" in set_name:
         docs = load_json(f"{data_path}datasets/{dataset}-trafo_xl.json", samples)
+
+    assert len(docs) == samples
     return docs
 
 
@@ -197,6 +199,7 @@ def tokenize_bow_single(docs, workers=None, return_filtered_docs=False):
 def tokenize_bow_dual(docs0, docs1, union=False, workers=None, return_filtered_docs=False):
     assert docs0 is not None
     assert docs1 is not None
+    assert len(docs0) == len(docs1)
 
     docs0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=True)
     docs1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=True)
@@ -289,7 +292,7 @@ def train_classic_lda(dictionary, corpus, num_topics, seed, file_path):
     )
 
     top_topics = model.top_topics(corpus)
-    model.save(f"{file_path}ldamodel_{num_topics}")
+    model.save(f"{file_path}model")
 
     # Average topic coherence is the sum of topic coherences of all topics, divided by the number of topics.
     avg_topic_coherence = sum([t[1] for t in top_topics]) / num_topics
@@ -410,23 +413,23 @@ def main():
     Command:
         python train_lda.py [data_path] [topic_model_type] [first_corpus] [second_corpus] [focus] [sampling_method] [number_of_topics] [merge_technique] [corpus_size] [variance_index]
 
-        Corpus Options (always use gpt2_nt, gpt2 or wiki first, in that order (convention)):
+        Corpus Options (always use gpt2_nt, gpt2 or wiki first, in that order (convention)): str
             gpt2_nt, gpt2, trafo_xl_nt, trafo_xl, wiki_nt, arxiv
-        Topic Model Type:
+        Topic Model Type: str
             classic_lda, neural_lda
-        Focus options:
+        Focus options: str
             first: First corpus is used for lda model creation
             second: Second corpus is used for lda model creation
-        Sampling method:
+        Sampling method: str
             multinomial, typ_p, top_p
-        Topic options:
+        Topic options: int
             2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100, ...
-        Merge technique:
+        Merge technique: str
             union: Unionize dictionaries
             intersection: Intersect dictionaries
-        Corpus size:
-            Int > 0 and < 100'000
-        Variance index:
+        Corpus size: int
+            > 0 and < 100'000
+        Variance index: int
             Model index when calculating the variance (changes the seed)
 
     Examples:
@@ -519,6 +522,8 @@ def main():
         docs2 = load_dataset(data_path, second, sampling, samples)
         assert docs1 is not None
         assert docs2 is not None
+        assert len(docs1) == samples
+        assert len(docs2) == samples
 
         random.seed(42)
         np.random.seed(42)
