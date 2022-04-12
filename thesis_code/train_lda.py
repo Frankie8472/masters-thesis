@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os
+import pickle
 import random
 import numpy as np
 import sys
@@ -298,6 +299,7 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    tuning = False
 
     dataset_object = Dataset(
         corpus=documents,
@@ -308,7 +310,7 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
     model = NeuralLDA(
         num_topics=num_topics,
         activation='softplus',
-        dropout=0.3,
+        dropout=0.2,
         learn_priors=True,
         batch_size=64,
         lr=2e-3,
@@ -324,38 +326,40 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
         use_partitions=False
     )
 
-    search_space = {
-        'dropout': Real(0.0, 0.95),
-        'activation': Categorical({'softplus', 'relu', 'sigmoid', 'tanh', 'rrelu', 'elu'}),
-        'num_layers': Integer(1, 20),
-        'num_neurons': Categorical({50, 100, 200, 500, 1000}),
-        'num_samples': Categorical({10, 20, 50, 100})
-    }
+    if tuning:
+        search_space = {
+            'dropout': Real(0.0, 0.95),
+            'activation': Categorical({'softplus', 'relu', 'sigmoid', 'tanh', 'rrelu', 'elu'}),
+            'num_layers': Integer(1, 20),
+            'num_neurons': Categorical({50, 100, 200, 500, 1000}),
+            'num_samples': Categorical({10, 20, 50, 100})
+        }
 
-    coherence = Coherence(texts=dataset_object.get_corpus(), measure='c_v')
+        coherence = Coherence(texts=dataset_object.get_corpus(), measure='c_v')
 
-    optimization_runs = len(search_space.keys()) * 15
-    model_runs = 10
+        optimization_runs = len(search_space.keys()) * 15
+        model_runs = 10
 
-    optimizer = Optimizer()
-    
-    optimization_result = optimizer.optimize(
-        model=model,
-        dataset=dataset_object,
-        metric=coherence,
-        search_space=search_space,
-        extra_metrics=None,
-        number_of_call=optimization_runs,
-        model_runs=model_runs,
-        random_state=seed,
-        save_models=False,
-        save_path=file_path
-    )
+        optimizer = Optimizer()
 
-    optimization_result.save_to_csv(f"{file_path}results_neuralLDA.csv")
+        optimization_result = optimizer.optimize(
+            model=model,
+            dataset=dataset_object,
+            metric=coherence,
+            search_space=search_space,
+            extra_metrics=None,
+            number_of_call=optimization_runs,
+            model_runs=model_runs,
+            random_state=seed,
+            save_models=False,
+            save_path=file_path
+        )
 
-    # model.train_model(dataset_object)
-    # model.model.save(file_path)
+        optimization_result.save_to_csv(f"{file_path}results_neuralLDA.csv")
+    else:
+        model.train_model(dataset_object)
+        with open(f"{file_path}model.pickle", "wb") as file:
+            pickle.dump(model, file)
     return
 
 
