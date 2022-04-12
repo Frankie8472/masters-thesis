@@ -23,10 +23,8 @@ def get_state(cuda_device):
     """
     random_state = random.getstate()
     numpy_state = np.random.get_state()
-    #numpy_state = (numpy_state[0], numpy_state[1].tolist())
-
-    torch_state = torch.get_rng_state()#.tolist()
-    cuda_state = torch.cuda.get_rng_state(cuda_device)#.tolist()
+    torch_state = torch.get_rng_state()
+    cuda_state = torch.cuda.get_rng_state(cuda_device)
     return [random_state, numpy_state, torch_state, cuda_state]
 
 
@@ -119,6 +117,8 @@ def create_corpus(
         else:
             print(">> ERROR: File exists but has no rng state file, therefore cannot be enhanced. Delete file for overwriting")
             return
+
+        print(f">> Enhancing corpus from {len(decoded_output)} to {corpus_size} documents")
     else:
         decoded_output = []
 
@@ -130,21 +130,21 @@ def create_corpus(
         if pad_token_id == 'eos_token_id':
             pad_token_id = tokenizer.eos_token_id
         else:
-            print("ERROR: Undefinded/unimplemented pad_token_id")
+            print(">> ERROR: Undefinded/unimplemented pad_token_id")
 
     if bos_token_id is not None:
         if bos_token_id == 'eos_token_id':
             bos_token_id = tokenizer.eos_token_id
         else:
-            print("ERROR: Undefinded/unimplemented bod_token_id")
+            print(">> ERROR: Undefinded/unimplemented bod_token_id")
 
     if eos_token_id is not None:
         if eos_token_id == 'eos_token_id':
             eos_token_id = tokenizer.eos_token_id
         else:
-            print("ERROR: Undefinded/unimplemented bod_token_id")
+            print(">> ERROR: Undefinded/unimplemented bod_token_id")
 
-    print(f"EOS: {tokenizer.eos_token} | BOS: {tokenizer.bos_token} | UNK: {tokenizer.unk_token}")
+    print(f">> EOS: {tokenizer.eos_token} | BOS: {tokenizer.bos_token} | UNK: {tokenizer.unk_token}")
 
     model = model.to(device)
 
@@ -223,7 +223,7 @@ def main():
     load_size = 50
 
     if len(sys.argv) < 6:
-        print("ERROR: Wrong input arguments")
+        print(">> ERROR: Wrong input arguments")
         return
 
     data_folder_path = sys.argv[1]
