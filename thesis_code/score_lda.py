@@ -17,7 +17,7 @@ from octis.models.NeuralLDA import NeuralLDA
 import train_lda
 
 
-def diff(topic_model_1, topic_model_2, distance="kullback_leibler", normed=True):
+def diff(topic_model_1, topic_model_2, distance="jensen_shannon", normed=True):
     """Calculate the difference in topic distributions between two models.
 
     Parameters
@@ -221,6 +221,7 @@ def main():
             cv
             tt (top_topic
             tp
+            img
         samples: int
             10000, 100000
         models:
@@ -311,6 +312,26 @@ def main():
                         score_path = f"{root_path}tp_score.json"
                         key = f"{topic_model}-{models}-{merge_type}"
                         save_score(score_path, score, key, idx, len(num_topics))
+                    elif score_mode == "img":
+                        # Calculate the Difference Graph and save it
+                        distance = 'jensen_shannon'
+                        words = 100000000
+
+                        mdiff, annotation = diff(model1, model2, distance=distance)
+
+                        fig, axes = plt.subplots(figsize=(18, 14))
+                        data = axes.imshow(mdiff, cmap='RdBu_r', vmin=0.0, vmax=1.0, origin='lower')
+                        for axis in [axes.xaxis, axes.yaxis]:
+                            axis.set_major_locator(MaxNLocator(integer=True))
+
+                        title = f"Topic Model difference {model1_name} vs. {model2_name} ({topic_model})"
+                        subtitle = f"({samples} samples, {models.split('-')[2]} sampling, {topic} topics, {merge_type} dictionaries, {distance} distance)"
+                        plt.suptitle(title, fontsize=15)
+                        axes.set_title(subtitle, fontsize=8, x=0.6)
+
+                        plt.colorbar(data)
+                        plt.savefig(f"{root_path}/diff_{topic_model}_{merge_type}_{topic}.png", dpi=300)
+                        plt.close('all')
 
                     else:
                         raise ValueError(">> ERROR: undefined score_mode")
