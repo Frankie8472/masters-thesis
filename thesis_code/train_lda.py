@@ -462,7 +462,7 @@ def main():
     assert sampling in ["multinomial", "typ_p", "top_p"], ">> ERROR: undefined sampling input"
 
     if topic_model not in ["classic_lda", "neural_lda"]:
-        raise AssertionError(f">> ERROR: undefinded topic_model")
+        raise ValueError(f">> ERROR: undefinded topic_model")
 
     folder_name = f"{first}-{second}"
     if sampling != "multinomial":
@@ -479,7 +479,7 @@ def main():
     elif combi == "union":
         union = True
     else:
-        raise AssertionError(">> ERROR: undefined combi input")
+        raise ValueError(">> ERROR: undefined combi input")
 
     seed = 42
     index = ""
@@ -506,7 +506,7 @@ def main():
         file_path = file_path_first
         lda_file_path = ""
     else:
-        raise AssertionError(">> ERROR: undefined focus input")
+        raise ValueError(">> ERROR: undefined focus input")
 
     docs_path = f"{file_path}documents"
     dic_path = f"{file_path}dictionary"
