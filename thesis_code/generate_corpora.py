@@ -98,107 +98,104 @@ def create_corpus(
             Top_p sampling: typ_p = 1.0, top_p = ]0.0, 1.0[
             Typ_p sampling: top_p = 1.0, typ_p = ]0.0, 1.0[
     """
-    split = save_path.split('/')
-    rng_path = '/'.join(split[:-1])+f"/rng/{split[-1][:-5]}_rng.pickle"
+    try:
+        split = save_path.split('/')
+        rng_path = '/'.join(split[:-1])+f"/rng/{split[-1][:-5]}_rng.pickle"
 
-    os.makedirs(os.path.dirname(rng_path), exist_ok=True)
+        os.makedirs(os.path.dirname(rng_path), exist_ok=True)
 
-    if os.path.isfile(save_path):
-        with open(save_path, 'r') as file:
-            decoded_output = json.load(file)
-            if len(decoded_output) >= corpus_size:
-                print(">> ERROR: File has already reached desired size")
-                return
+        if os.path.isfile(save_path):
+            with open(save_path, 'r') as file:
+                decoded_output = json.load(file)
+                if len(decoded_output) >= corpus_size:
+                    raise AssertionError(">> ERROR: File has already reached desired size")
 
-        if os.path.isfile(rng_path):
-            with open(rng_path, "rb") as file:
-                state = pickle.load(file)
-                set_state(state, device)
+            if os.path.isfile(rng_path):
+                with open(rng_path, "rb") as file:
+                    state = pickle.load(file)
+                    set_state(state, device)
+            else:
+                raise FileNotFoundError(">> ERROR: File exists but has no rng state file, therefore cannot be enhanced. Delete file for overwriting")
+
+            print(f">> Enhancing corpus from {len(decoded_output)} to {corpus_size} documents")
         else:
-            print(">> ERROR: File exists but has no rng state file, therefore cannot be enhanced. Delete file for overwriting")
-            return
+            decoded_output = []
 
-        print(f">> Enhancing corpus from {len(decoded_output)} to {corpus_size} documents")
-    else:
-        decoded_output = []
+        tokenizer = tokenizer_model.from_pretrained(tokenizer_name)
+        model = lm_model.from_pretrained(model_name)
 
-    tokenizer = tokenizer_model.from_pretrained(tokenizer_name)
-    model = lm_model.from_pretrained(model_name)
+        max_document_length = max_document_length if max_document_length is not None else tokenizer.model_max_length
+        if pad_token_id is not None:
+            if pad_token_id == 'eos_token_id':
+                pad_token_id = tokenizer.eos_token_id
+            else:
+                raise ValueError(">> ERROR: Undefinded/unimplemented pad_token_id")
 
-    max_document_length = max_document_length if max_document_length is not None else tokenizer.model_max_length
-    if pad_token_id is not None:
-        if pad_token_id == 'eos_token_id':
-            pad_token_id = tokenizer.eos_token_id
-        else:
-            print(">> ERROR: Undefinded/unimplemented pad_token_id")
+        if bos_token_id is not None:
+            if bos_token_id == 'eos_token_id':
+                bos_token_id = tokenizer.eos_token_id
+            else:
+                raise ValueError(">> ERROR: Undefinded/unimplemented bod_token_id")
 
-    if bos_token_id is not None:
-        if bos_token_id == 'eos_token_id':
-            bos_token_id = tokenizer.eos_token_id
-        else:
-            print(">> ERROR: Undefinded/unimplemented bod_token_id")
+        if eos_token_id is not None:
+            if eos_token_id == 'eos_token_id':
+                eos_token_id = tokenizer.eos_token_id
+            else:
+                raise ValueError(">> ERROR: Undefinded/unimplemented bod_token_id")
 
-    if eos_token_id is not None:
-        if eos_token_id == 'eos_token_id':
-            eos_token_id = tokenizer.eos_token_id
-        else:
-            print(">> ERROR: Undefinded/unimplemented bod_token_id")
+        print(f">> EOS: {tokenizer.eos_token} | BOS: {tokenizer.bos_token} | UNK: {tokenizer.unk_token}")
 
-    print(f">> EOS: {tokenizer.eos_token} | BOS: {tokenizer.bos_token} | UNK: {tokenizer.unk_token}")
+        model = model.to(device)
 
-    model = model.to(device)
+        with tqdm(total=corpus_size - len(decoded_output)) as pbar:
+            for i in range(0, 4*corpus_size):
+                encoded_output = model.generate(
+                    # all parameters have to be set as otherwise the config of the pretrained model will be taken
+                    input_ids=None,
+                    max_length=max_document_length,
+                    do_sample=True,                         # False implies Greedy search
+                    early_stopping=False,
+                    num_beams=1,                            # 1 deactivates beam_search
+                    temperature=1.0,                        # 1.0 deactivates temperature
+                    top_k=0,                                # 0 deactivates top_k sampling
+                    top_p=top_p,                            # 1.0 deactivates top_p (nucleus) sampling  using 0.9
+                    typical_p=typ_p,                        # 1.0 deactivates typical_p sampling        using 0.2
+                    repetition_penalty=1.0,                 # 1.0 deactivates repetition_penalty
+                    pad_token_id=pad_token_id,              # For open-end generation set to eos_token_id
+                    bos_token_id=bos_token_id,
+                    eos_token_id=eos_token_id,
+                    length_penalty=1.0,                     # 1.0 deactivates length_penalty
+                    no_repeat_ngram_size=0,                 # 0 deactivates no_repeat_ngram_size
+                    encoder_no_repeat_ngram_size=0,         # 0 deactivates encoder_no_repeat_ngram_size
+                    num_return_sequences=load_size,         # The number of independently computed returned sequences for each element in the batch. No input means batch size of one.
+                    num_beam_groups=1,
+                    output_scores=False,                    # Will be important if you want the prediction scores!
+                )
 
-    with tqdm(total=corpus_size - len(decoded_output)) as pbar:
-        for i in range(0, 4*corpus_size):
-            encoded_output = model.generate(
-                # all parameters have to be set as otherwise the config of the pretrained model will be taken
-                input_ids=None,
-                max_length=max_document_length,
-                do_sample=True,                         # False implies Greedy search
-                early_stopping=False,
-                num_beams=1,                            # 1 deactivates beam_search
-                temperature=1.0,                        # 1.0 deactivates temperature
-                top_k=0,                                # 0 deactivates top_k sampling
-                top_p=top_p,                            # 1.0 deactivates top_p (nucleus) sampling  using 0.9
-                typical_p=typ_p,                        # 1.0 deactivates typical_p sampling        using 0.2
-                repetition_penalty=1.0,                 # 1.0 deactivates repetition_penalty
-                pad_token_id=pad_token_id,              # For open-end generation set to eos_token_id
-                bos_token_id=bos_token_id,
-                eos_token_id=eos_token_id,
-                length_penalty=1.0,                     # 1.0 deactivates length_penalty
-                no_repeat_ngram_size=0,                 # 0 deactivates no_repeat_ngram_size
-                encoder_no_repeat_ngram_size=0,         # 0 deactivates encoder_no_repeat_ngram_size
-                num_return_sequences=load_size,         # The number of independently computed returned sequences for each element in the batch. No input means batch size of one.
-                num_beam_groups=1,
-                output_scores=False,                    # Will be important if you want the prediction scores!
-            )
+                for j in range(load_size):
+                    out_tmp = tokenizer.decode(encoded_output[j], skip_special_tokens=True)
+                    if out_tmp != "" and len(decoded_output) != corpus_size:
+                        decoded_output.append(out_tmp)
+                        pbar.update(1)
+                    if len(decoded_output) == corpus_size:
+                        break
 
-            for j in range(load_size):
-                out_tmp = tokenizer.decode(encoded_output[j], skip_special_tokens=True)
-                if out_tmp != "" and len(decoded_output) != corpus_size:
-                    decoded_output.append(out_tmp)
-                    pbar.update(1)
                 if len(decoded_output) == corpus_size:
+                    print(f">> Expected Size reached after {i}*{load_size} iterations")
                     break
 
-            if len(decoded_output) == corpus_size:
-                print(f">> Expected Size reached after {i}*{load_size} iterations")
-                break
+        if len(decoded_output) != corpus_size:
+            raise TimeoutError(">> ERROR: Expected Size not reached, to many empty strings")
 
-    if len(decoded_output) != corpus_size:
-        print(">> ERROR: Expected Size not reached, to many empty strings")
+        with open(save_path, 'w') as file:
+            json.dump(decoded_output, file, indent=2)
+
+        with open(rng_path, "wb") as file:
+            pickle.dump(get_state(device), file)
+
+    finally:
         gc.collect()
         torch.cuda.empty_cache()
-        return
-
-    with open(save_path, 'w') as file:
-        json.dump(decoded_output, file, indent=2)
-
-    with open(rng_path, "wb") as file:
-        pickle.dump(get_state(device), file)
-
-    gc.collect()
-    torch.cuda.empty_cache()
 
 
 def main():
@@ -223,8 +220,7 @@ def main():
     load_size = 50
 
     if len(sys.argv) < 6:
-        print(">> ERROR: Wrong input arguments")
-        return
+        raise ValueError(">> ERROR: Wrong input arguments")
 
     data_folder_path = sys.argv[1]
     model = sys.argv[2]
@@ -243,8 +239,7 @@ def main():
         set_seed(1337)
         dataset_path += "dataset2-"
     else:
-        print(f">> ERROR: This index has not yet been implemented")
-        return
+        raise ValueError(f">> ERROR: This index has not yet been implemented")
 
     dataset_path += model
 
@@ -264,8 +259,7 @@ def main():
         dataset_path += "-" + sampling
         top_p = 0.9
     else:
-        print(">> ERROR: This sampling method has not yet been implemented")
-        return
+        raise ValueError(">> ERROR: This sampling method has not yet been implemented")
 
     if model == "gpt2":
         tokenizer_name = "gpt2"
@@ -296,8 +290,7 @@ def main():
         tokenizer_model = TransfoXLTokenizer
         lm_model = TransfoXLLMHeadModel
     else:
-        print(">> ERROR: This model has not yet been implemented")
-        return
+        raise ValueError(">> ERROR: This model has not yet been implemented")
 
     create_corpus(
         tokenizer_name=tokenizer_name,
