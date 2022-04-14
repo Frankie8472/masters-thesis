@@ -340,7 +340,7 @@ def main():
     score_mode = sys.argv[2]
     samples = int(sys.argv[3])
     models = sys.argv[4]
-    topic_models = ["classic_lda", "neural_lda"]
+    topic_models = ["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
     num_topics = [2, 3, 5, 10, 20, 50, 100]
     merge_types = ["intersection", "union"]
 
