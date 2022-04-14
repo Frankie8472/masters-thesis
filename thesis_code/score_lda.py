@@ -1,8 +1,10 @@
 import json
+import logging
 import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from gensim import matutils
 from gensim.matutils import kullback_leibler, jensen_shannon
 from gensim.models import CoherenceModel
 from matplotlib.ticker import MaxNLocator
@@ -70,9 +72,12 @@ def diff(topic_model_1, topic_model_2, distance="jensen_shannon", normed=True):
     return z
 
 
-def score_by_topic_coherence(model, texts, dictionary, topn=20):
+def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
     """
     Calculates c_v coherence score
+    Note: This is not working stable if texts/corpus contains empty documents and if there are words that do not appear in the whole corpus.
+    Solution: Remove all empty documents on load and edit log_ratio_measure() in direct_confirmation_measure.py and
+              _cossim in indirect_confirmation_measure.py in gensim.topic_coherence
 
     :param model: LdaModel or NeuralLDA model
     :param texts: corpus
@@ -83,18 +88,21 @@ def score_by_topic_coherence(model, texts, dictionary, topn=20):
     :return:
     """
     if isinstance(model, LdaMulticore):
-        score = CoherenceModel(model=model, texts=texts, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
+        topics = model.get_topics()
     elif isinstance(model, NeuralLDA):
-        score = CoherenceModel(topics=model.model.get_topics(k=topn), texts=texts, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
+        topics = model.model.get_topic_word_mat()
     else:
         raise ValueError(f">> Error: topic model instance not defined")
+    topics_ = [matutils.argsort(topic, topn=topn, reverse=True) for topic in topics]
+    score = CoherenceModel(processes=4, topics=topics_, texts=texts, corpus=corpus, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
     return score
 
 
 def score_by_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1=None, corpus_2=None, documents_1=None, documents_2=None, distance='jensen_shannon'):
     """
     Calculates the score by 'distance' and weights the strongest similarities by their topic probability over the whole corpus.
-
+    Note: Is not stable for neural topic models as they are very sensitive on the change of the input value magnitude they are trained on.
+          Meaning if they were trained on a word count of 1000 it is unstable to predict on a word count of 10000
     :param topic_model_1:
     :param topic_model_2:
     :param corpus_1:
@@ -133,7 +141,6 @@ def score_by_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1=Non
         data_corpus = [' '.join(list(itertools.chain.from_iterable(documents_1)))]
         x_train, input_size = topic_model_1.preprocess(topic_model_1.vocab, train=data_corpus)
         topic_corpus_prob_1 = topic_model_1.model.get_thetas(x_train).T
-
         data_corpus = [' '.join(list(itertools.chain.from_iterable(documents_2)))]
         x_train, input_size = topic_model_2.preprocess(topic_model_2.vocab, train=data_corpus)
         topic_corpus_prob_2 = topic_model_2.model.get_thetas(x_train).T
@@ -210,40 +217,7 @@ def save_score(score_path, score, key, idx, array_length):
     return
 
 
-def main():
-    """
-    Command:
-        python score_lda.py [data_folder_path] [score_mode] [10000] [models]
-
-        score_mode: str
-            cv
-            tt (top_topic
-            tp
-            img
-        samples: int
-            10000, 100000
-        models:
-            trafo_xl_nt-trafo_xl_nt, gpt2_nt-gpt2_nt-typ_p, gpt2_nt-trafo_xl_nt-typ_p, gpt2_nt-wiki_nt-typ_p, gpt2_nt-arxiv-typ_p
-            gpt2_nt-gpt2-typ_p, gpt2_nt-trafo_xl-typ_p, gpt2_nt-wiki_nt-top_p, gpt2_nt-arxiv-top_p, gpt2_nt-trafo_xl-top_p, gpt2-wiki_nt
-            trafo_xl-wiki_nt, gpt2_nt-trafo_xl_nt-top_p, gpt2_nt-arxiv, gpt2_nt-gpt2_nt-top_p, gpt2_nt-gpt2-top_p, gpt2_nt-wiki_nt, arxiv-arxiv
-            trafo_xl_nt-wiki_nt, wiki_nt-arxiv, wiki_nt-wiki_nt, trafo_xl_nt-trafo_xl, trafo_xl-arxiv, gpt2-trafo_xl_nt, trafo_xl-trafo_xl
-            trafo_xl_nt-arxiv, gpt2-gpt2, gpt2-arxiv, gpt2_nt-trafo_xl, gpt2-trafo_xl, gpt2_nt-trafo_xl_nt, gpt2_nt-gpt2_nt, gpt2_nt-gpt2
-    """
-    if len(sys.argv) < 5:
-        raise ValueError(f">> ERROR: Wrong number of arguments")
-
-    data_folder_path = sys.argv[1]
-
-    if data_folder_path[-1] != '/':
-        data_folder_path += '/'
-
-    score_mode = sys.argv[2]
-    samples = int(sys.argv[3])
-    models = sys.argv[4]
-    topic_models = ["classic_lda", "neural_lda"]
-    num_topics = [2, 3, 5, 10, 20, 50, 100]
-    merge_types = ["intersection", "union"]
-
+def score_iteration(data_folder_path, score_mode, samples, models, topic_models, num_topics, merge_types):
     length = len(merge_types) * len(topic_models) * len(num_topics)
     with tqdm(total=length) as pbar:
         model1_name = models.split("-")[0]
@@ -288,8 +262,8 @@ def main():
 
                     # Score models
                     if score_mode == "cv":
-                        score1 = score_by_topic_coherence(model1, documents1, dictionary1)
-                        score2 = score_by_topic_coherence(model2, documents2, dictionary2)
+                        score1 = score_by_topic_coherence(model1, documents1, corpus1, dictionary1)
+                        score2 = score_by_topic_coherence(model2, documents2, corpus2, dictionary2)
 
                         key1 = f"{topic_model}-{models}-{model1_name_}-{merge_type}"
                         key2 = f"{topic_model}-{models}-{model2_name_}-{merge_type}"
@@ -334,8 +308,52 @@ def main():
                         raise ValueError(">> ERROR: undefined score_mode")
 
                     pbar.update(1)
+
+
+def main():
+    """
+    Command:
+        python score_lda.py [data_folder_path] [score_mode] [10000] [models]
+
+        score_mode: str
+            cv
+            tt (top_topic
+            tp
+            img
+        samples: int
+            10000, 100000
+        models:
+            trafo_xl_nt-trafo_xl_nt, gpt2_nt-gpt2_nt-typ_p, gpt2_nt-trafo_xl_nt-typ_p, gpt2_nt-wiki_nt-typ_p, gpt2_nt-arxiv-typ_p
+            gpt2_nt-gpt2-typ_p, gpt2_nt-trafo_xl-typ_p, gpt2_nt-wiki_nt-top_p, gpt2_nt-arxiv-top_p, gpt2_nt-trafo_xl-top_p, gpt2-wiki_nt
+            trafo_xl-wiki_nt, gpt2_nt-trafo_xl_nt-top_p, gpt2_nt-arxiv, gpt2_nt-gpt2_nt-top_p, gpt2_nt-gpt2-top_p, gpt2_nt-wiki_nt, arxiv-arxiv
+            trafo_xl_nt-wiki_nt, wiki_nt-arxiv, wiki_nt-wiki_nt, trafo_xl_nt-trafo_xl, trafo_xl-arxiv, gpt2-trafo_xl_nt, trafo_xl-trafo_xl
+            trafo_xl_nt-arxiv, gpt2-gpt2, gpt2-arxiv, gpt2_nt-trafo_xl, gpt2-trafo_xl, gpt2_nt-trafo_xl_nt, gpt2_nt-gpt2_nt, gpt2_nt-gpt2
+    """
+    if len(sys.argv) < 5:
+        raise ValueError(f">> ERROR: Wrong number of arguments")
+
+    data_folder_path = sys.argv[1]
+
+    if data_folder_path[-1] != '/':
+        data_folder_path += '/'
+
+    score_mode = sys.argv[2]
+    samples = int(sys.argv[3])
+    models = sys.argv[4]
+    topic_models = ["classic_lda", "neural_lda"]
+    num_topics = [2, 3, 5, 10, 20, 50, 100]
+    merge_types = ["intersection", "union"]
+
+    score_iteration(data_folder_path, score_mode, samples, models, topic_models, num_topics, merge_types)
+
     return
+
+
+def test():
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
+    score_iteration("./data/", "tp", 10000, "gpt2_nt-wiki_nt", ["neural_lda"], [20, 50, 100], ["intersection", "union"])
 
 
 if __name__ == '__main__':
     main()
+    #test()
