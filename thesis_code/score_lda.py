@@ -7,11 +7,9 @@ from gensim.matutils import kullback_leibler, jensen_shannon
 from gensim.models import CoherenceModel
 from matplotlib.ticker import MaxNLocator
 from gensim.models.ldamulticore import LdaMulticore
-from gensim.utils import SaveLoad
 from tqdm.auto import tqdm
 from operator import itemgetter
 import itertools
-from transformers import set_seed
 from octis.models.NeuralLDA import NeuralLDA
 
 import train_lda
@@ -54,7 +52,7 @@ def diff(topic_model_1, topic_model_2, distance="jensen_shannon", normed=True):
     elif isinstance(topic_model_1, NeuralLDA) and isinstance(topic_model_2, NeuralLDA):
         d1, d2 = topic_model_1.model.get_topic_word_mat(), topic_model_2.model.get_topic_word_mat()
     else:
-        raise ValueError(">> Error: topic models are not the same instance")
+        raise ValueError(f">> Error: topic models are not the same instance")
 
     t1_size, t2_size = d1.shape[0], d2.shape[0]
 
@@ -89,7 +87,7 @@ def score_by_topic_coherence(model, texts, dictionary, topn=20):
     elif isinstance(model, NeuralLDA):
         score = CoherenceModel(topics=model.model.get_topics(k=topn), texts=texts, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
     else:
-        raise ValueError(">> Error: topic models are not the same instance")
+        raise ValueError(f">> Error: topic model instance not defined")
     return score
 
 
@@ -205,7 +203,7 @@ def save_score(score_path, score, key, idx, array_length):
     else:
         scores = dict()
     if key not in scores.keys():
-        scores[key] = np.ones(array_length)
+        scores[key] = np.ones(array_length).tolist()
     scores[key][idx] = score
     with open(score_path, "w") as file:
         json.dump(scores, file)
@@ -256,8 +254,7 @@ def main():
             model1_name_ += "_1"
             model2_name_ += "_2"
 
-            sampling_method = "-" + models.split("-")[2] if len(models.split("-")) == 3 else ""
-
+        sampling_method = "-" + models.split("-")[2] if len(models.split("-")) == 3 else ""
         root_path = f"{data_folder_path}{samples}/{model1_name}-{model2_name}{sampling_method}/"
         for merge_type in merge_types:
             # Load doc, cor, dic
@@ -278,7 +275,7 @@ def main():
                 for idx, topic in enumerate(num_topics):
                     # Load models
                     model1_path = f"{subroot_path1}{topic_model}/{topic}/"
-                    model2_path = f"{subroot_path1}{topic_model}/{topic}/"
+                    model2_path = f"{subroot_path2}{topic_model}/{topic}/"
 
                     if topic_model == "classic_lda":
                         model1 = LdaMulticore.load(f"{model1_path}model")
@@ -291,8 +288,8 @@ def main():
 
                     # Score models
                     if score_mode == "cv":
-                        score1 = score_by_topic_coherence(model1_name, documents1, dictionary1)
-                        score2 = score_by_topic_coherence(model2_name, documents2, dictionary2)
+                        score1 = score_by_topic_coherence(model1, documents1, dictionary1)
+                        score2 = score_by_topic_coherence(model2, documents2, dictionary2)
 
                         key1 = f"{topic_model}-{models}-{model1_name_}-{merge_type}"
                         key2 = f"{topic_model}-{models}-{model2_name_}-{merge_type}"
@@ -324,7 +321,8 @@ def main():
                             axis.set_major_locator(MaxNLocator(integer=True))
 
                         title = f"Topic Model difference {model1_name} vs. {model2_name} ({topic_model})"
-                        subtitle = f"({samples} samples, {models.split('-')[2]} sampling, {topic} topics, {merge_type} dictionaries, {distance} distance)"
+                        sampling_name = "multinomial" if len(models.split("-")) < 3 else models.split("-")[2]
+                        subtitle = f"({samples} samples, {sampling_name} sampling, {topic} topics, {merge_type} dictionaries, {distance} distance)"
                         plt.suptitle(title, fontsize=15)
                         axes.set_title(subtitle, fontsize=8, x=0.6)
 
