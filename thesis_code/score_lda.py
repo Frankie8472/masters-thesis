@@ -58,10 +58,10 @@ def diff(topic_model_1, topic_model_2, distance="jensen_shannon", normed=True):
 
     t1_size, t2_size = d1.shape[0], d2.shape[0]
 
-    # initialize z and annotation matrix
+    # initialize z
     z = np.zeros((t1_size, t2_size))
 
-    # iterate over each cell in the initialized z and annotation
+    # iterate over each cell in the initialized z
     for topic in np.ndindex(z.shape):
         topic1 = topic[0]
         topic2 = topic[1]
@@ -205,7 +205,7 @@ def save_score(score_path, score, key, idx, array_length):
     else:
         scores = dict()
     if key not in scores.keys():
-        scores[key] = np.ones(len(array_length))
+        scores[key] = np.ones(array_length)
     scores[key][idx] = score
     with open(score_path, "w") as file:
         json.dump(scores, file)
@@ -242,10 +242,9 @@ def main():
     score_mode = sys.argv[2]
     samples = int(sys.argv[3])
     models = sys.argv[4]
-    topic_models = ["classic_lda", "neural_lda"],
-    num_topics = [2, 3, 5, 10, 20, 50, 100],
-
-    merge_types = ["intersection", "union"],
+    topic_models = ["classic_lda", "neural_lda"]
+    num_topics = [2, 3, 5, 10, 20, 50, 100]
+    merge_types = ["intersection", "union"]
 
     length = len(merge_types) * len(topic_models) * len(num_topics)
     with tqdm(total=length) as pbar:
@@ -257,7 +256,8 @@ def main():
             model1_name_ += "_1"
             model2_name_ += "_2"
 
-        sampling_method = "" if models.split("-")[2] == "multinomial" else "-" + models.split("-")[2]
+            sampling_method = "-" + models.split("-")[2] if len(models.split("-")) == 3 else ""
+
         root_path = f"{data_folder_path}{samples}/{model1_name}-{model2_name}{sampling_method}/"
         for merge_type in merge_types:
             # Load doc, cor, dic
@@ -315,9 +315,8 @@ def main():
                     elif score_mode == "img":
                         # Calculate the Difference Graph and save it
                         distance = 'jensen_shannon'
-                        words = 100000000
 
-                        mdiff, annotation = diff(model1, model2, distance=distance)
+                        mdiff = diff(model1, model2, distance=distance)
 
                         fig, axes = plt.subplots(figsize=(18, 14))
                         data = axes.imshow(mdiff, cmap='RdBu_r', vmin=0.0, vmax=1.0, origin='lower')
