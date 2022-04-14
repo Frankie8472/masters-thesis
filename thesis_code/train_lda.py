@@ -1,7 +1,6 @@
 import itertools
 import logging
 import os
-import pickle
 import random
 import numpy as np
 import sys
@@ -401,10 +400,11 @@ def load_data(docs_path=None, dic_path=None, cor_path=None):
     if cor_path is not None:
         with open(cor_path, 'r') as file:
             corpus = json.load(file)
+        corpus = [x for x in corpus if x]
     if docs_path is not None:
         with open(docs_path, 'r') as file:
             documents = json.load(file)
-
+        documents = [x for x in documents if x]
     return documents, dictionary, corpus
 
 
