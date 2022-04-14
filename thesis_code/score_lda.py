@@ -81,6 +81,7 @@ def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
 
     :param model: LdaModel or NeuralLDA model
     :param texts: corpus
+    :param corpus: list of list of int
     :param dictionary: dictionary
     :param topn: int, optional
         Integer corresponding to the number of top words to be extracted from each topic.
@@ -249,13 +250,13 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
                 for idx, topic in enumerate(num_topics):
                     var = True
                     var_idx = 0
-                    var_path = ""
                     var_key = ""
+                    model1_path = f"{subroot_path1}{topic_model}/{topic}/"
+                    model2_path = f"{subroot_path2}{topic_model}/{topic}/"
+                    model1_path_ = f"{subroot_path1}{topic_model}/{topic}/"
+                    model2_path_ = f"{subroot_path2}{topic_model}/{topic}/"
                     while var:
                         # Load models
-                        model1_path = f"{subroot_path1}{topic_model}/{topic}/{var_path}"
-                        model2_path = f"{subroot_path2}{topic_model}/{topic}/{var_path}"
-
                         if topic_model == "classic_lda":
                             model1 = LdaMulticore.load(f"{model1_path}model")
                             model2 = LdaMulticore.load(f"{model2_path}model")
@@ -299,7 +300,7 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
                             for axis in [axes.xaxis, axes.yaxis]:
                                 axis.set_major_locator(MaxNLocator(integer=True))
 
-                            title = f"Topic Model difference {model1_name} vs. {model2_name} ({topic_model}) {var_idx}"
+                            title = f"Topic Model difference {model1_name} vs. {model2_name} ({topic_model}){var_key}"
                             sampling_name = "multinomial" if len(models.split("-")) < 3 else models.split("-")[2]
                             subtitle = f"({samples} samples, {sampling_name} sampling, {topic} topics, {merge_type} dictionaries, {distance} distance)"
                             plt.suptitle(title, fontsize=15)
@@ -313,10 +314,10 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
                             raise ValueError(">> ERROR: undefined score_mode")
 
                         var_idx += 1
-                        if os.path.exists(f"{model1_path}/{var_idx}/model") and os.path.exists(f"{model2_path}/{var_idx}/model"):
-                            var_path = f"{var_idx}/"
-                            var_key = f"-{var_idx}"
-                        else:
+                        var_key = f"-{var_idx}"
+                        model1_path = f"{model1_path_}{var_idx}/"
+                        model2_path = f"{model2_path_}{var_idx}/"
+                        if not os.path.exists(f"{model1_path}model") or not os.path.exists(f"{model2_path}model"):
                             var = False
 
                     pbar.update(1)
