@@ -41,7 +41,13 @@ def generate_bjobs(topics, file_path, data_path, topic_models, models, models_co
                                     combi_short = "is" if combi == "intersection" else "un"
                                     if calc_score:
                                         for score in score_mode:
-                                            print(f"bsub -N -W {time} -n {num_cpu} -R \"rusage[mem={cpu_mem}]\" -oo logs/{samples}/log-{score}-{first}-{second}{sampling_method_short}.txt \"python {file_path}score_lda.py {data_path} {score} {samples} {first}-{second}{sampling_method_short}\"")
+                                            if use_gpu:
+                                                if gpu_model is None:
+                                                    print(f"bsub -N -W {time} -n {num_cpu} -R \"rusage[mem={cpu_mem},ngpus_excl_p={num_gpus}]\" -R \"select[gpu_mtotal0>={gpu_mem}]\" -oo logs/{samples}/log-{score}-{first}-{second}{sampling_method_short}.txt \"python {file_path}score_lda.py {data_path} {score} {samples} {first}-{second}{sampling_method_short}\"")
+                                                else:
+                                                    print(f"bsub -N -W {time} -n {num_cpu} -R \"rusage[mem={cpu_mem},ngpus_excl_p={num_gpus}]\" -R \"select[gpu_model0=={gpu_model}]\" -oo logs/{samples}/log-{score}-{first}-{second}{sampling_method_short}.txt \"python {file_path}score_lda.py {data_path} {score} {samples} {first}-{second}{sampling_method_short}\"")
+                                            else:
+                                                print(f"bsub -N -W {time} -n {num_cpu} -R \"rusage[mem={cpu_mem}]\" -oo logs/{samples}/log-{score}-{first}-{second}{sampling_method_short}.txt \"python {file_path}score_lda.py {data_path} {score} {samples} {first}-{second}{sampling_method_short}\"")
                                     else:
                                         if use_gpu:
                                             if gpu_model is None:
@@ -195,6 +201,9 @@ def generate_score_bjobs(samples=10000):
         time="24:00",
         num_cpu=4,
         cpu_mem=10240,
+        use_gpu=True,
+        num_gpus=1,
+        gpu_mem=10000,
         calc_score=True,
         score_mode=["cv", "tt", "tp", "img"]
     )
