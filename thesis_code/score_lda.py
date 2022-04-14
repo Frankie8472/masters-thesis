@@ -247,65 +247,77 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
 
             for topic_model in topic_models:
                 for idx, topic in enumerate(num_topics):
-                    # Load models
-                    model1_path = f"{subroot_path1}{topic_model}/{topic}/"
-                    model2_path = f"{subroot_path2}{topic_model}/{topic}/"
+                    var = True
+                    var_idx = 0
+                    var_path = ""
+                    var_key = ""
+                    while var:
+                        # Load models
+                        model1_path = f"{subroot_path1}{topic_model}/{topic}/{var_path}"
+                        model2_path = f"{subroot_path2}{topic_model}/{topic}/{var_path}"
 
-                    if topic_model == "classic_lda":
-                        model1 = LdaMulticore.load(f"{model1_path}model")
-                        model2 = LdaMulticore.load(f"{model2_path}model")
-                    elif topic_model == "neural_lda":
-                        model1 = train_lda.decompress_pickle(f"{model1_path}model")
-                        model2 = train_lda.decompress_pickle(f"{model2_path}model")
-                    else:
-                        raise ValueError(">> ERROR: undefined score_mode")
+                        if topic_model == "classic_lda":
+                            model1 = LdaMulticore.load(f"{model1_path}model")
+                            model2 = LdaMulticore.load(f"{model2_path}model")
+                        elif topic_model == "neural_lda":
+                            model1 = train_lda.decompress_pickle(f"{model1_path}model")
+                            model2 = train_lda.decompress_pickle(f"{model2_path}model")
+                        else:
+                            raise ValueError(">> ERROR: undefined score_mode")
 
-                    # Score models
-                    if score_mode == "cv":
-                        score1 = score_by_topic_coherence(model1, documents1, corpus1, dictionary1)
-                        score2 = score_by_topic_coherence(model2, documents2, corpus2, dictionary2)
+                        # Score models
+                        if score_mode == "cv":
+                            score1 = score_by_topic_coherence(model1, documents1, corpus1, dictionary1)
+                            score2 = score_by_topic_coherence(model2, documents2, corpus2, dictionary2)
 
-                        key1 = f"{topic_model}-{models}-{model1_name_}-{merge_type}"
-                        key2 = f"{topic_model}-{models}-{model2_name_}-{merge_type}"
+                            key1 = f"{topic_model}-{models}-{model1_name_}-{merge_type}{var_key}"
+                            key2 = f"{topic_model}-{models}-{model2_name_}-{merge_type}{var_key}"
 
-                        score_path = f"{root_path}cv_score.json"
-                        save_score(score_path, score1, key1, idx, len(num_topics))
-                        save_score(score_path, score2, key2, idx, len(num_topics))
+                            score_path = f"{root_path}cv_score.json"
+                            save_score(score_path, score1, key1, idx, len(num_topics))
+                            save_score(score_path, score2, key2, idx, len(num_topics))
 
-                    elif score_mode == "tt":
-                        score = score_by_top_topic_corpus_probability(model1, model2, corpus1, corpus2)
-                        score_path = f"{root_path}tt_score.json"
-                        key = f"{topic_model}-{models}-{merge_type}"
-                        save_score(score_path, score, key, idx, len(num_topics))
+                        elif score_mode == "tt":
+                            score = score_by_top_topic_corpus_probability(model1, model2, corpus1, corpus2)
+                            score_path = f"{root_path}tt_score.json"
+                            key = f"{topic_model}-{models}-{merge_type}{var_key}"
+                            save_score(score_path, score, key, idx, len(num_topics))
 
-                    elif score_mode == "tp":
-                        score = score_by_topic_corpus_probability(model1, model2, corpus1, corpus2, documents1, documents2)
-                        score_path = f"{root_path}tp_score.json"
-                        key = f"{topic_model}-{models}-{merge_type}"
-                        save_score(score_path, score, key, idx, len(num_topics))
-                    elif score_mode == "img":
-                        # Calculate the Difference Graph and save it
-                        distance = 'jensen_shannon'
+                        elif score_mode == "tp":
+                            score = score_by_topic_corpus_probability(model1, model2, corpus1, corpus2, documents1, documents2)
+                            score_path = f"{root_path}tp_score.json"
+                            key = f"{topic_model}-{models}-{merge_type}{var_key}"
+                            save_score(score_path, score, key, idx, len(num_topics))
+                        elif score_mode == "img":
+                            # Calculate the Difference Graph and save it
+                            distance = 'jensen_shannon'
 
-                        mdiff = diff(model1, model2, distance=distance)
+                            mdiff = diff(model1, model2, distance=distance)
 
-                        fig, axes = plt.subplots(figsize=(18, 14))
-                        data = axes.imshow(mdiff, cmap='RdBu_r', vmin=0.0, vmax=1.0, origin='lower')
-                        for axis in [axes.xaxis, axes.yaxis]:
-                            axis.set_major_locator(MaxNLocator(integer=True))
+                            fig, axes = plt.subplots(figsize=(18, 14))
+                            data = axes.imshow(mdiff, cmap='RdBu_r', vmin=0.0, vmax=1.0, origin='lower')
+                            for axis in [axes.xaxis, axes.yaxis]:
+                                axis.set_major_locator(MaxNLocator(integer=True))
 
-                        title = f"Topic Model difference {model1_name} vs. {model2_name} ({topic_model})"
-                        sampling_name = "multinomial" if len(models.split("-")) < 3 else models.split("-")[2]
-                        subtitle = f"({samples} samples, {sampling_name} sampling, {topic} topics, {merge_type} dictionaries, {distance} distance)"
-                        plt.suptitle(title, fontsize=15)
-                        axes.set_title(subtitle, fontsize=8, x=0.6)
+                            title = f"Topic Model difference {model1_name} vs. {model2_name} ({topic_model}) {var_idx}"
+                            sampling_name = "multinomial" if len(models.split("-")) < 3 else models.split("-")[2]
+                            subtitle = f"({samples} samples, {sampling_name} sampling, {topic} topics, {merge_type} dictionaries, {distance} distance)"
+                            plt.suptitle(title, fontsize=15)
+                            axes.set_title(subtitle, fontsize=8, x=0.6)
 
-                        plt.colorbar(data)
-                        plt.savefig(f"{root_path}/diff_{topic_model}_{merge_type}_{topic}.png", dpi=300)
-                        plt.close('all')
+                            plt.colorbar(data)
+                            plt.savefig(f"{root_path}/diff_{topic_model}_{merge_type}_{topic}{var_key}.png", dpi=300)
+                            plt.close('all')
 
-                    else:
-                        raise ValueError(">> ERROR: undefined score_mode")
+                        else:
+                            raise ValueError(">> ERROR: undefined score_mode")
+
+                        var_idx += 1
+                        if os.path.exists(f"{model1_path}/{var_idx}/model") and os.path.exists(f"{model2_path}/{var_idx}/model"):
+                            var_path = f"{var_idx}/"
+                            var_key = f"-{var_idx}"
+                        else:
+                            var = False
 
                     pbar.update(1)
 
