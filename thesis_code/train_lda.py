@@ -322,12 +322,21 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
         metadata=dict()
     )
 
+    # Drop_last parameter not available, therefore adjust batch_size to not leave a one-set
+    batch_size = 64
+    rest = len(documents) % batch_size
+    while rest == 1:
+        batch_size += 1
+        rest = len(documents) % batch_size
+
+    print(f">> batch_size: {batch_size}")
+
     model = NeuralLDA(
         num_topics=num_topics,
         activation='softplus',
         dropout=0.2,
         learn_priors=True,
-        batch_size=64,
+        batch_size=batch_size,
         lr=2e-3,
         momentum=0.99,
         solver='adam',
@@ -343,9 +352,9 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
 
     if tuning:
         search_space = {
-            'dropout': Real(0.0, 0.95),
+            'dropout': Categorical({0.0, 0.01, 0.2, 0.5, 0.8, 0.9, 0.99}),
             'activation': Categorical({'softplus', 'relu', 'sigmoid', 'tanh', 'rrelu', 'elu'}),
-            'num_layers': Integer(1, 20),
+            'num_layers': Categorical({1, 2, 5, 10, 20, 50, 100}),
             'num_neurons': Categorical({50, 100, 200, 500, 1000}),
             'num_samples': Categorical({10, 20, 50, 100})
         }
