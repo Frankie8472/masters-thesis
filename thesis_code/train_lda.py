@@ -352,11 +352,10 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
 
     if tuning:
         search_space = {
-            'dropout': Categorical({0.0, 0.03, 0.2, 0.9}),
+            'dropout': Categorical({0.0, 0.03, 0.1, 0.2, 0.9}),
             'activation': Categorical({'sigmoid', 'tanh', 'softplus'}),
             'num_layers': Categorical({1, 2, 5}),
-            'num_neurons': Categorical({500, 1000, 1500, 10000}),
-            'num_samples': Categorical({10, 20, 50})
+            'num_neurons': Categorical({500, 1000, 1500, 2000, 10000}),
         }
 
         coherence = Coherence(texts=dataset_object.get_corpus(), measure='c_v')
