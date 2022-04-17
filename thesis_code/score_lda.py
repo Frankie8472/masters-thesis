@@ -77,7 +77,7 @@ def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
     Calculates c_v coherence score
     Note: This is not working stable if texts/corpus contains empty documents and if there are words that do not appear in the whole corpus.
     Solution: Remove all empty documents on load and edit log_ratio_measure() in direct_confirmation_measure.py and
-              _cossim in indirect_confirmation_measure.py in gensim.topic_coherence
+              _cossim in indirect_confirmation_measure.py in gensim.topic_coherence as there could be division by zero! (add EPSILON to denominator)
 
     :param model: LdaModel or NeuralLDA model
     :param texts: corpus
@@ -95,7 +95,7 @@ def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
     else:
         raise ValueError(f">> Error: topic model instance not defined")
     topics_ = [matutils.argsort(topic, topn=topn, reverse=True) for topic in topics]
-    score = CoherenceModel(processes=4, topics=topics_, texts=texts, corpus=corpus, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
+    score = CoherenceModel(processes=48, topics=topics_, texts=texts, corpus=corpus, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
     return score
 
 
@@ -170,20 +170,29 @@ def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1
     min2 = np.amin(mdiff2, axis=1)
 
     if isinstance(topic_model_1, LdaMulticore) and isinstance(topic_model_2, LdaMulticore):
-        num_topics = topic_model_1.num_topics
+        from pathos.multiprocessing import ProcessingPool as Pool
 
-        cnt1 = np.zeros(num_topics)
-        cnt2 = np.zeros(num_topics)
+        def prob_list(topic_model, corpus):
+            cnt = np.zeros(topic_model.num_topics)
+            for doc in corpus:
+                topic_prob_list = topic_model.get_document_topics(doc, minimum_probability=0.0)
+                topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
+                cnt[topic_prob_tupel[0]] += 1
+            return cnt
 
-        for doc in corpus_1:
-            topic_prob_list = topic_model_1.get_document_topics(doc, minimum_probability=0.0)
-            topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
-            cnt1[topic_prob_tupel[0]] += 1
+        workers = 8
+        pool = Pool(ncpus=workers)
 
-        for doc in corpus_2:
-            topic_prob_list = topic_model_2.get_document_topics(doc, minimum_probability=0.0)
-            topic_prob_tupel = max(topic_prob_list, key=itemgetter(1))
-            cnt2[topic_prob_tupel[0]] += 1
+        logging.info("First split")
+        cnt_split = pool.map(lambda x: prob_list(topic_model_1, x), list(train_lda.split(corpus_1, workers)))
+        cnt1 = np.sum(cnt_split, axis=0)
+        assert len(cnt1) == topic_model_1.num_topics, f">> ERROR: Count changed to {len(cnt1)}"
+
+        logging.info("Second split")
+        cnt_split = pool.map(lambda x: prob_list(topic_model_2, x), list(train_lda.split(corpus_2, workers)))
+        cnt2 = np.sum(cnt_split, axis=0)
+        assert len(cnt2) == topic_model_2.num_topics
+
     elif isinstance(topic_model_1, NeuralLDA) and isinstance(topic_model_2, NeuralLDA):
         num_topics = topic_model_1.model.num_topics
 
@@ -353,7 +362,7 @@ def main():
     score_mode = sys.argv[2]
     samples = int(sys.argv[3])
     models = sys.argv[4]
-    topic_models = ["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
+    topic_models = ["neural_lda"]   #["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
     num_topics = [2, 3, 5, 10, 20, 50, 100]
     merge_types = ["intersection", "union"]
 
@@ -364,7 +373,7 @@ def main():
 
 def test():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
-    score_iteration("./data/", "tp", 10000, "gpt2_nt-wiki_nt", ["neural_lda"], [20, 50, 100], ["intersection", "union"])
+    score_iteration("./data/", "tp", 100000, "gpt2_nt-wiki_nt", ["classic_lda"], [100], ["intersection"])
 
 
 if __name__ == '__main__':
