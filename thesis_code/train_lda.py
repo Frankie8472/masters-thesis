@@ -200,8 +200,8 @@ def tokenize_bow_dual(docs0, docs1, union=False, workers=None, return_filtered_d
     assert docs1 is not None
     assert len(docs0) == len(docs1)
 
-    docs0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=True)
-    docs1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=True)
+    docs0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=False)
+    docs1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=False)
     docs0, dic0 = tokenize_create_dictionary(docs0)
     docs1, dic1 = tokenize_create_dictionary(docs1)
 
