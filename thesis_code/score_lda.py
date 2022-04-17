@@ -102,8 +102,9 @@ def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
 def score_by_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1=None, corpus_2=None, documents_1=None, documents_2=None, distance='jensen_shannon'):
     """
     Calculates the score by 'distance' and weights the strongest similarities by their topic probability over the whole corpus.
-    Note: Is not stable for neural topic models as they are very sensitive on the change of the input value magnitude they are trained on.
+    Note: 1. Is not stable for neural topic models as they are very sensitive on the change of the input value magnitude they are trained on.
           Meaning if they were trained on a word count of 1000 it is unstable to predict on a word count of 10000
+          2. The difference of using filtered documents vs unfiltered is less than 0.03
     :param topic_model_1:
     :param topic_model_2:
     :param corpus_1:
@@ -244,22 +245,22 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
             # Load doc, cor, dic
             subroot_path1 = f"{root_path}{model1_name_}/{merge_type}/"
             subroot_path2 = f"{root_path}{model2_name_}/{merge_type}/"
-            _, dictionary1, corpus1 = train_lda.load_data(
+            documents1, dictionary1, corpus1 = train_lda.load_data(
                 docs_path=f"{subroot_path1}documents",
                 dic_path=f"{subroot_path1}dictionary",
                 cor_path=f"{subroot_path1}corpus"
             )
-            _, dictionary2, corpus2 = train_lda.load_data(
+            documents2, dictionary2, corpus2 = train_lda.load_data(
                 docs_path=f"{subroot_path2}documents",
                 dic_path=f"{subroot_path2}dictionary",
                 cor_path=f"{subroot_path2}corpus"
             )
-
+            """
             documents1, _, _, documents2, _, _ = train_lda.tokenize_bow_dual(
-                train_lda.load_dataset(data_folder_path, model1_name_, sampling_method, samples),
-                train_lda.load_dataset(data_folder_path, model2_name_, sampling_method, samples),
+                train_lda.load_dataset(data_folder_path, model1_name_, "multinomial" if sampling_method == "" else sampling_method[1:], samples),
+                train_lda.load_dataset(data_folder_path, model2_name_, "multinomial" if sampling_method == "" else sampling_method[1:], samples),
                 merge_type == "union", workers=7, return_filtered_docs=False)
-
+            """
             for topic_model in topic_models:
                 for idx, topic in enumerate(num_topics):
                     var = True
@@ -367,7 +368,7 @@ def main():
     score_mode = sys.argv[2]
     samples = int(sys.argv[3])
     models = sys.argv[4]
-    topic_models = ["classic_lda"]   #["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
+    topic_models = ["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
     num_topics = [2, 3, 5, 10, 20, 50, 100]
     merge_types = ["intersection", "union"]
 
@@ -378,7 +379,7 @@ def main():
 
 def test():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
-    score_iteration("./data/", "tp", 100000, "gpt2_nt-wiki_nt", ["classic_lda"], [100], ["intersection"])
+    score_iteration("./data/", "cv", 10000, "gpt2_nt-wiki_nt", ["classic_lda"], [10], ["intersection"])
 
 
 if __name__ == '__main__':
