@@ -333,36 +333,36 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
 
     model = NeuralLDA(
         num_topics=num_topics,
-        activation='softplus',
-        dropout=0.2,
+        activation='sigmoid',
+        dropout=0.1,    # high dropout is bad
         learn_priors=True,
         batch_size=batch_size,
         lr=2e-3,
         momentum=0.99,
         solver='adam',
-        num_epochs=100,
+        num_epochs=200,
         reduce_on_plateau=False,
         prior_mean=0.0,
         prior_variance=None,
-        num_layers=2,
-        num_neurons=100,
-        num_samples=10,
+        num_layers=1,   # a lot of layers is bad
+        num_neurons=2000,   # a lot of neurons is good
+        num_samples=100,     # Get the document-topic distribution for a dataset of topics. Includes multiple sampling to reduce variation via the parameter num_samples
         use_partitions=False
     )
 
     if tuning:
         search_space = {
-            'dropout': Categorical({0.0, 0.01, 0.2, 0.5, 0.8, 0.9, 0.99}),
-            'activation': Categorical({'softplus', 'relu', 'sigmoid', 'tanh', 'rrelu', 'elu'}),
-            'num_layers': Categorical({1, 2, 5, 10, 20, 50, 100}),
-            'num_neurons': Categorical({50, 100, 200, 500, 1000}),
-            'num_samples': Categorical({10, 20, 50, 100})
+            'dropout': Categorical({0.0, 0.03, 0.2, 0.9}),
+            'activation': Categorical({'sigmoid', 'tanh', 'softplus'}),
+            'num_layers': Categorical({1, 2, 5}),
+            'num_neurons': Categorical({500, 1000, 1500, 10000}),
+            'num_samples': Categorical({10, 20, 50})
         }
 
         coherence = Coherence(texts=dataset_object.get_corpus(), measure='c_v')
 
         optimization_runs = len(search_space.keys()) * 15
-        model_runs = 10
+        model_runs = 6
 
         optimizer = Optimizer()
 
