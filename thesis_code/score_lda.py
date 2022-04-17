@@ -244,16 +244,21 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
             # Load doc, cor, dic
             subroot_path1 = f"{root_path}{model1_name_}/{merge_type}/"
             subroot_path2 = f"{root_path}{model2_name_}/{merge_type}/"
-            documents1, dictionary1, corpus1 = train_lda.load_data(
+            _, dictionary1, corpus1 = train_lda.load_data(
                 docs_path=f"{subroot_path1}documents",
                 dic_path=f"{subroot_path1}dictionary",
                 cor_path=f"{subroot_path1}corpus"
             )
-            documents2, dictionary2, corpus2 = train_lda.load_data(
+            _, dictionary2, corpus2 = train_lda.load_data(
                 docs_path=f"{subroot_path2}documents",
                 dic_path=f"{subroot_path2}dictionary",
                 cor_path=f"{subroot_path2}corpus"
             )
+
+            documents1, _, _, documents2, _, _ = train_lda.tokenize_bow_dual(
+                train_lda.load_dataset(data_folder_path, model1_name_, sampling_method, samples),
+                train_lda.load_dataset(data_folder_path, model2_name_, sampling_method, samples),
+                merge_type == "union", workers=7, return_filtered_docs=False)
 
             for topic_model in topic_models:
                 for idx, topic in enumerate(num_topics):
@@ -362,7 +367,7 @@ def main():
     score_mode = sys.argv[2]
     samples = int(sys.argv[3])
     models = sys.argv[4]
-    topic_models = ["neural_lda"]   #["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
+    topic_models = ["classic_lda"]   #["classic_lda", "neural_lda"] if samples <= 10000 else ["classic_lda"]
     num_topics = [2, 3, 5, 10, 20, 50, 100]
     merge_types = ["intersection", "union"]
 
