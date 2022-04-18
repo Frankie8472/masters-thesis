@@ -20,7 +20,7 @@ def generate_bjobs(topics, file_path, data_path, topic_models, models, models_co
                     sampling_method_short = "" if sampling_method == "multinomial" else "-" + sampling_method
                     for first in models:
                         for second in models_copy:
-                            if sampling_method != "multinomial" and first != "gpt2_nt" and second != "gpt2_nt":
+                            if sampling_method != "multinomial" and first not in ["gpt2_nt", "trafo_xl_nt"] and second not in ["gpt2_nt", "trafo_xl_nt"]:
                                 continue
                             for topic in topics:
                                 if topic == 1:
@@ -200,7 +200,7 @@ def generate_score_bjobs(samples=10000):
 
 
 def main():
-    generate_tokenize_bjobs(100000)
+    #generate_tokenize_bjobs(100000)
     #generate_tokenize_bjobs(10000)
     
     #generate_classic_lda_bjobs(100000)
@@ -213,6 +213,7 @@ def main():
 
     #generate_score_bjobs(10000)
     #generate_score_bjobs(100000)
+    return
 
 
 if __name__ == '__main__':
