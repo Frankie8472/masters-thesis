@@ -18,17 +18,33 @@ import bz2
 
 
 def compressed_pickle(title, data):
+    """
+    Function used for compressing and saving data
+    :param title: str, filepath without ending
+    :param data: any, data
+    """
     with bz2.BZ2File(title + ".pbz2", "w") as f:
         cPickle.dump(data, f)
 
 
 def decompress_pickle(file):
+    """
+    Function used for loading compressed data
+    :param file: str, filepath without ending
+    :return: any, loaded data
+    """
     data = bz2.BZ2File(file + ".pbz2", "rb")
     data = cPickle.load(data)
     return data
 
 
 def load_wikitext(path, samples=100000):
+    """
+    Loads the wikitext corpus by random choosing with replacement from the full corpus
+    :param path: str, path to the data folder
+    :param samples: int, number of documents to return
+    :return: list of str, wikitext corpus
+    """
     heading_pattern = '( \n [=\s].*[=\s] \n)'
     train_data = Path(f'{path}datasets/data_wikitext-103-raw/wiki.train.raw').read_text(encoding='utf-8')
     train_split = re.split(heading_pattern, train_data)
@@ -38,6 +54,17 @@ def load_wikitext(path, samples=100000):
 
 
 def load_arxiv(path, samples=100000):
+    """
+    Loads the arxiv corpus by random choosing with replacement from the full corpus
+
+    Can lead to freezing in jupyter notebooks, run only in a normal python file
+
+    :param path: str, path to the data folder
+    :param samples: int, number of documents to return
+    :return: list of str, arxiv corpus
+    """
+
+    # preparing a generator as the arxiv file is very large
     def get_metadata():
         with open(f'{path}datasets/data_arxiv-metadata-oai-snapshot.json', 'r') as f:
             for line in f:
@@ -45,24 +72,34 @@ def load_arxiv(path, samples=100000):
 
     metadata = get_metadata()
     corpus = []
+
+    # extracting all abstracts
     for paper in metadata:
         corpus.append(json.loads(paper)['abstract'])
     return random.choices(corpus, k=samples)
 
 
-def load_json_choices(filename, samples=100000):
-    with open(filename, 'r') as file:
-        train_articles = json.load(file)
-    return random.choices(train_articles, k=samples)
-
-
 def load_json(filename, samples=100000):
+    """
+    Loads the generated corpus from a json file by picking the first n samples, random chosing is not neccessary as the sampling process from a language model is random
+    :param filename: str, filepath and name
+    :param samples: int, number of documents to return
+    :return: list of str, corpus
+    """
     with open(filename, 'r') as file:
         train_articles = json.load(file)
     return train_articles[:min(samples, len(train_articles))]
 
 
 def load_dataset(data_path, set_name, sampling_method, samples=100000):
+    """
+    Defines the parameters of the datasets from the thesis to be loaded accordingly
+    :param data_path: str, path to the "data" folder
+    :param set_name: str, "arxiv", "gpt-2","wikitext", "gpt-2_nt", "trafo_xl_nt", "trafo_xl"
+    :param sampling_method: str, "multinomial", "top-p", "typ-p"
+    :param samples: int, number of documents in a corpus
+    :return: list of str, the loaded dataset
+    """
     random.seed(42)
     np.random.seed(42)
 
@@ -100,6 +137,13 @@ def load_dataset(data_path, set_name, sampling_method, samples=100000):
 
 
 def tokenize_text(docs, add_bigrams=True, add_trigrams=True):
+    """
+    Used for tokenizing documents for topic model generation
+    :param docs: list of str, the corpus
+    :param add_bigrams: bool, if bigrams should be added
+    :param add_trigrams: bool, if trigrams should be added
+    :return:
+    """
     # Tokenize the documents.
     # Split the documents into tokens.
     tokenizer = RegexpTokenizer(r'\w+')
@@ -151,6 +195,11 @@ def tokenize_text(docs, add_bigrams=True, add_trigrams=True):
 
 
 def tokenize_create_dictionary(docs):
+    """
+    Helper function for creating dictionaries and filtering extreme word occurrences (min and max)
+    :param docs:
+    :return: list of str, gensim.corpora.dictionary.Dictionary
+    """
     # Remove rare and common tokens.
     # Create a dictionary representation of the documents.
     dic = Dictionary(docs)
@@ -162,65 +211,77 @@ def tokenize_create_dictionary(docs):
 
 
 def split(a, n):
+    """
+    Helper function for splitting up list of any into equal parts (apart from the last one, the rest)
+    :param a: list of any, the list of aby to be splitted
+    :param n: int, the number of splits
+    :return: list of list of any, splitet list of any
+    """
     k, m = divmod(len(a), n)
     return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
 def filter_docs(docs, dic):
+    """
+    Helper function for filtering documents if the word occurs in the dictionary
+    :param docs: list of list of int, the tokenized corpus
+    :param dic: list of int, the dictionary
+    :return: list of list of int, the content reduced corpus to the words in the dictionary
+    """
     for i, _ in enumerate(docs):
         docs[i] = [word for word in docs[i] if word in dic]
     return docs
 
 
-def tokenize_bow_single(docs, workers=None, return_filtered_docs=False):
-    docs = tokenize_text(docs, add_bigrams=True, add_trigrams=True)
-    docs, dic = tokenize_create_dictionary(docs)
-
-    if return_filtered_docs:
-        import pathos
-        from pathos.multiprocessing import ProcessingPool as Pool
-
-        dictionary = list(dic.token2id.keys())
-        cnt = pathos.helpers.cpu_count() if workers is None else workers
-        docs_split = list(split(docs, cnt))
-        pool = Pool(ncpus=cnt)
-        docs_split = pool.map(lambda x: filter_docs(x, dictionary), docs_split)
-        docs = list(itertools.chain.from_iterable(docs_split))
-
-    # Bag-of-words representation of the documents.
-    corpus = [dic.doc2bow(doc) for doc in docs]
-    print('>> Number of unique tokens: %d' % len(dic))
-    print('>> Number of documents: %d' % len(corpus))
-
-    return docs, dic, corpus
-
-
 def tokenize_bow_dual(docs0, docs1, union=False, workers=None, return_filtered_docs=False):
+    """
+    Function for creating two dictionaries (dic0, dic1), two tokenized corpora (cor0, cor1) and two filtered non-tokenized corpora (docs0, docs1) out of two corpora (docs0, docs1)
+
+    cor is of type "list of (int, int)",
+    doc is of type "list of str",
+    dic is of type "gensim.corpora.dictionary.Dictionary",
+
+    :param docs0: list of str, corpus 0
+    :param docs1: list of str, corpus 1
+    :param union: bool, if we take the union or the intersection from the two dictionaries
+    :param workers: int, number of workers to parallelize the filtering of the non-tokenized corpus
+    :param return_filtered_docs: bool, if the filtered non-tokenized corpus should be returned, if false it will not be calculated
+    :return: docs0, dic0, cor0, docs1, dic1, cor1
+
+
+    """
     assert docs0 is not None
     assert docs1 is not None
     assert len(docs0) == len(docs1)
 
+    # tokenize corpus
     docs0 = tokenize_text(docs0, add_bigrams=True, add_trigrams=False)
     docs1 = tokenize_text(docs1, add_bigrams=True, add_trigrams=False)
+
+    # create dictionary and filter extremes
     docs0, dic0 = tokenize_create_dictionary(docs0)
     docs1, dic1 = tokenize_create_dictionary(docs1)
 
+    # decide on the merge method
     if union:
         transformer = dic0.merge_with(dic1)
     else:
         good_ids0 = []
         good_ids1 = []
+        # search for the same words and keep them
         for good_value in set(dic0.values()).intersection(set(dic1.values())):
             good_ids0.append(dic0.token2id[good_value])
             good_ids1.append(dic1.token2id[good_value])
         dic0.filter_tokens(good_ids=good_ids0)
 
+    # set both dictionaries as the same, needed for comparing two topic models
     dic1 = dic0
 
     assert len(docs0) == len(docs1), ">> ERROR: Corpus length not the same"
 
     corpus_length = len(docs0)
 
+    # filter the documents so that only words in the vocabulary remain, used for C_v score calculation
     if return_filtered_docs:
         import pathos
         from pathos.multiprocessing import ProcessingPool as Pool
@@ -251,17 +312,38 @@ def tokenize_bow_dual(docs0, docs1, union=False, workers=None, return_filtered_d
     return docs0, dic0, cor0, docs1, dic1, cor1
 
 
-def train_topic_model(docs, dictionary, corpus, num_topics, seed, file_path, data_path, topic_model):
+def train_topic_model(docs, dictionary, corpus, num_topics, seed, file_path, topic_model):
+    """
+    Helper function for calling the respective topic model classes
+    :param docs: list of str
+    :param dictionary: gensim.corpora.dictionary.Dictionary
+    :param corpus: list of (int, int)
+    :param num_topics: int, the number of topic the topic model should be trained for
+    :param seed: int, the seed for reproducibility
+    :param file_path: str, filepath to where the model shall be saved
+    :param topic_model: str, the topic model to be used, "classic_lda", "neural_lda"
+    """
+
     if topic_model == "classic_lda":
         train_classic_lda(dictionary, corpus, num_topics, seed, file_path)
     elif topic_model == "neural_lda":
-        train_neural_lda(docs, dictionary, num_topics, seed, file_path, data_path)
+        train_neural_lda(docs, dictionary, num_topics, seed, file_path)
     else:
         raise ValueError("wrong topic model classifier")
     return
 
 
 def train_classic_lda(dictionary, corpus, num_topics, seed, file_path):
+    """
+    Trains a classic lda model and saves the model in filepath
+    :param dictionary: gensim.corpora.dictionary.Dictionary
+    :param corpus: list of (int, int)
+    :param num_topics: int, the number of topic the topic model should be trained for
+    :param seed: int, the seed for reproducibility
+    :param file_path: str, filepath to where the model shall be saved
+    """
+
+    # setting seed for reproducibility
     random.seed(seed)
     np.random.seed(seed)
 
@@ -276,6 +358,7 @@ def train_classic_lda(dictionary, corpus, num_topics, seed, file_path):
     temp = dictionary[0]  # This is only to "load" the dictionary.
     id2word = dictionary.id2token
 
+    # initalizing the model
     model = LdaMulticore(
         corpus=corpus,
         num_topics=num_topics,
@@ -290,9 +373,10 @@ def train_classic_lda(dictionary, corpus, num_topics, seed, file_path):
         random_state=seed
     )
 
-    top_topics = model.top_topics(corpus)
+    # save model
     model.save(f"{file_path}model")
 
+    top_topics = model.top_topics(corpus)
     # Average topic coherence is the sum of topic coherences of all topics, divided by the number of topics.
     avg_topic_coherence = sum([t[1] for t in top_topics]) / num_topics
     print('>> Average topic coherence: %.4f.' % avg_topic_coherence)
@@ -301,7 +385,19 @@ def train_classic_lda(dictionary, corpus, num_topics, seed, file_path):
     return
 
 
-def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_path):
+def train_neural_lda(documents, dictionary, num_topics, seed, file_path):
+    """
+    Trains a neural lda model and saves the model in filepath
+
+    The parameter tuning can be manually be set to true to evaluate the best hyperparameters and save the results in filepath
+
+    :param documents: list of str
+    :param dictionary: gensim.corpora.dictionary.Dictionary
+    :param num_topics: int, the number of topic the topic model should be trained for
+    :param seed: int, the seed for reproducibility
+    :param file_path: str, filepath to where the model shall be saved
+    """
+
     # Train neural LDA model.
     import torch
     from octis.dataset.dataset import Dataset
@@ -310,12 +406,16 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
     from octis.evaluation_metrics.coherence_metrics import Coherence
     from octis.optimization.optimizer import Optimizer
 
+    # settings seed for reproducibility
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+    # tuning boolean if one wants to do hyperparameter tuning, set here manually
     tuning = False
 
+    # initialize dataset
     dataset_object = Dataset(
         corpus=documents,
         vocabulary=list(dictionary.token2id.keys()),
@@ -331,6 +431,7 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
 
     print(f">> batch_size: {batch_size}")
 
+    # initialize neural lda model
     model = NeuralLDA(
         num_topics=num_topics,
         activation='sigmoid',
@@ -351,6 +452,7 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
     )
 
     if tuning:
+        # define search space, keep in mind the more parameters, the less efficient bayesian optimization. maximum 4 categories
         search_space = {
             'dropout': Categorical({0.0, 0.03, 0.1, 0.2, 0.9}),
             'activation': Categorical({'sigmoid', 'tanh', 'softplus'}),
@@ -358,13 +460,19 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
             'num_neurons': Categorical({500, 1000, 1500, 2000, 10000}),
         }
 
+        # optimize the c_v coherence score when searching optimal parameters
         coherence = Coherence(texts=dataset_object.get_corpus(), measure='c_v')
 
+        # define optimization runs
         optimization_runs = len(search_space.keys()) * 15
+
+        # define model runs to rule out variation
         model_runs = 6
 
+        # initialize optimizer
         optimizer = Optimizer()
 
+        # run optimizer
         optimization_result = optimizer.optimize(
             model=model,
             dataset=dataset_object,
@@ -378,14 +486,27 @@ def train_neural_lda(documents, dictionary, num_topics, seed, file_path, data_pa
             save_path=file_path
         )
 
+        # save results
         optimization_result.save_to_csv(f"{file_path}results_neuralLDA.csv")
     else:
+        # train neural lda model
         model.train_model(dataset_object)
+
+        # save model
         compressed_pickle(f"{file_path}model", model)
     return
 
 
 def save_data(file_path, dic=None, cor=None, docs=None, ):
+    """
+    Saves documents, dictionary and corpus to disk
+    :param file_path: save folder path
+    :param dic: gensim.corpora.dictionary.Dictionary
+    :param cor: list of (int, int)
+    :param docs: list of str
+    """
+
+    # append names for respective data
     os.makedirs(os.path.dirname(f"{file_path}dictionary"), exist_ok=True)
     docs_path = f"{file_path}documents"
     dic_path = f"{file_path}dictionary"
@@ -402,17 +523,37 @@ def save_data(file_path, dic=None, cor=None, docs=None, ):
 
 
 def load_data(docs_path=None, dic_path=None, cor_path=None):
+    """
+    Loads documents, dictionary and corpus from disk
+    cor is of type "list of (int, int)",
+    doc is of type "list of str",
+    dic is of type "gensim.corpora.dictionary.Dictionary",
+
+    :param docs_path: str, path to documents
+    :param dic_path: str, path to dictionary
+    :param cor_path: str, path to corpus
+    :return: documents, dictionary, corpus
+    """
+
+    # initialize parameters to avoid error when returning
     documents = dictionary = corpus = None
+
+    # load dictionary
     if dic_path is not None:
         dictionary = SaveLoad.load(dic_path)
+
+    # load corpus
     if cor_path is not None:
         with open(cor_path, 'r') as file:
             corpus = json.load(file)
         corpus = [x for x in corpus if x]
+
+    # load documents
     if docs_path is not None:
         with open(docs_path, 'r') as file:
             documents = json.load(file)
         documents = [x for x in documents if x]
+
     return documents, dictionary, corpus
 
 
@@ -450,6 +591,7 @@ def main():
     """
     assert len(sys.argv) >= 10, ">> ERROR: Incorrect number of input arguments"
 
+    # assign input arguments and cast to appropriate type
     data_path = sys.argv[1]
     topic_model = sys.argv[2]
     first = sys.argv[3]
@@ -489,6 +631,7 @@ def main():
     else:
         raise ValueError(">> ERROR: undefined combi input")
 
+    # modify seed if the model is used for variance testing
     seed = 42
     index = ""
     if len(sys.argv) == 11:
@@ -498,6 +641,7 @@ def main():
         seed = 42 + 7 * var_idx
     print(f">> SEED for topic model generation: {seed}")
 
+    # define and modify file paths
     file_path_first = f"{data_path}{samples}/{folder_name}/{first}/{combi}/"
     file_path_second = f"{data_path}{samples}/{folder_name}/{second}/{combi}/"
 
@@ -520,12 +664,17 @@ def main():
     dic_path = f"{file_path}dictionary"
     cor_path = f"{file_path}corpus"
 
+    # set seed for reproducibility
     random.seed(42)
     np.random.seed(42)
 
+    # initiate logging for debugging and controlling (check if the model has converged)
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.DEBUG)
 
+    # tokenize corpus if the tokenized version does not exist
     if not os.path.exists(dic_path):
+
+        # load the corpora
         docs1 = load_dataset(data_path, first, sampling, samples)
         docs2 = load_dataset(data_path, second, sampling, samples)
         assert docs1 is not None
@@ -533,20 +682,29 @@ def main():
         assert len(docs1) == samples
         assert len(docs2) == samples
 
+        # reset seed for reproducibility
         random.seed(42)
         np.random.seed(42)
 
+        # tokenize the corpora
         docs1, dic1, cor1, docs2, dic2, cor2 = tokenize_bow_dual(docs1, docs2, union, workers=7, return_filtered_docs=True)
 
+        # save tokenized corpora
         save_data(file_path_first, dic=dic1, docs=docs1, cor=cor1)
         save_data(file_path_second, dic=dic2, docs=docs2, cor=cor2)
 
+    # load the tokenized corpus
     documents, dictionary, corpus = load_data(docs_path=docs_path, dic_path=dic_path, cor_path=cor_path)
 
     if num_topics == 1:
+        # there is no topic model with 1 topic...
         return
+
+    # create folder if it does not exist
     os.makedirs(os.path.dirname(lda_file_path), exist_ok=True)
-    train_topic_model(documents, dictionary, corpus, num_topics, seed, lda_file_path, data_path, topic_model)
+
+    # train topic model
+    train_topic_model(documents, dictionary, corpus, num_topics, seed, lda_file_path, topic_model)
     return
 
 

@@ -99,11 +99,14 @@ def create_corpus(
             Typ_p sampling: top_p = 1.0, typ_p = ]0.0, 1.0[
     """
     try:
+        # prepare filepaths
         split = save_path.split('/')
         rng_path = '/'.join(split[:-1])+f"/rng/{split[-1][:-5]}_rng.pickle"
 
+        # create folder if neccessary
         os.makedirs(os.path.dirname(rng_path), exist_ok=True)
 
+        # load random state
         if os.path.isfile(save_path):
             with open(save_path, 'r') as file:
                 decoded_output = json.load(file)
@@ -121,9 +124,13 @@ def create_corpus(
         else:
             decoded_output = []
 
+        # get tokenizer
         tokenizer = tokenizer_model.from_pretrained(tokenizer_name)
+
+        # get model
         model = lm_model.from_pretrained(model_name)
 
+        # set parameters for document generation
         max_document_length = max_document_length if max_document_length is not None else tokenizer.model_max_length
         if pad_token_id is not None:
             if pad_token_id == 'eos_token_id':
@@ -143,11 +150,15 @@ def create_corpus(
             else:
                 raise ValueError(">> ERROR: Undefinded/unimplemented bod_token_id")
 
-        print(f">> EOS: {tokenizer.eos_token} | BOS: {tokenizer.bos_token} | UNK: {tokenizer.unk_token}")
+        # print(f">> EOS: {tokenizer.eos_token} | BOS: {tokenizer.bos_token} | UNK: {tokenizer.unk_token}")
 
+        # load the model to the device (neccessary when using the gpu)
         model = model.to(device)
 
+        # initialize progress bar
         with tqdm(total=corpus_size - len(decoded_output)) as pbar:
+
+            # repeat doc generation more times than neccessary with break condition because there can be empty docs
             for i in range(0, 4*corpus_size):
                 encoded_output = model.generate(
                     # all parameters have to be set as otherwise the config of the pretrained model will be taken
@@ -172,6 +183,7 @@ def create_corpus(
                     output_scores=False,                    # Will be important if you want the prediction scores!
                 )
 
+                # save the intermediate resulting documents to the return list
                 for j in range(load_size):
                     out_tmp = tokenizer.decode(encoded_output[j], skip_special_tokens=True)
                     if out_tmp != "" and len(decoded_output) != corpus_size:
@@ -180,19 +192,22 @@ def create_corpus(
                     if len(decoded_output) == corpus_size:
                         break
 
+                # check break condition
                 if len(decoded_output) == corpus_size:
                     print(f">> Expected Size reached after {i}*{load_size} iterations")
                     break
 
-        if len(decoded_output) != corpus_size:
-            raise TimeoutError(">> ERROR: Expected Size not reached, to many empty strings")
+        assert len(decoded_output) == corpus_size, ">> ERROR: Expected Size not reached, to many empty strings"
 
+        # save generated corpus
         with open(save_path, 'w') as file:
             json.dump(decoded_output, file, indent=2)
 
+        # save random state for further generation without having to start from scratch
         with open(rng_path, "wb") as file:
             pickle.dump(get_state(device), file)
 
+    # cleanup system
     finally:
         gc.collect()
         torch.cuda.empty_cache()
@@ -216,18 +231,23 @@ def main():
         python generate_corpora.py /cluster/work/cotterell/knobelf/data/ gpt2-wiki_nt multinomial 0 50000
     """
 
+    # autodetect best device
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # define loadsize for how many documents fit into the gpu memory, has impact on how fast the documents are generated
+    # eventually needs to be tweaked for different gpus
     load_size = 50
 
-    if len(sys.argv) < 6:
-        raise ValueError(">> ERROR: Wrong input arguments")
+    assert len(sys.argv) >= 6, ">> ERROR: Wrong input arguments"
 
+    # get input parameters and cast to matching type
     data_folder_path = sys.argv[1]
     model = sys.argv[2]
     sampling = sys.argv[3]
     index = int(sys.argv[4])
     corpus_size = int(sys.argv[5])
 
+    # preprocessing of the datapaths
     if data_folder_path[-1] != "/":
         data_folder_path += "/"
 
@@ -243,6 +263,7 @@ def main():
 
     dataset_path += model
 
+    # define parameters for doc generation
     max_document_length = None
     bos_token_id = None
     pad_token_id = None
@@ -250,6 +271,7 @@ def main():
     top_p = 1.0
     typ_p = 1.0
 
+    # define sampling identifier for datapath
     if sampling == "multinomial":
         pass
     elif sampling == "typ_p":
@@ -261,6 +283,7 @@ def main():
     else:
         raise ValueError(">> ERROR: This sampling method has not yet been implemented")
 
+    # setting model parameters according to model identifier
     if model == "gpt2":
         tokenizer_name = "gpt2"
         model_path = "gpt2"
@@ -292,6 +315,7 @@ def main():
     else:
         raise ValueError(">> ERROR: This model has not yet been implemented")
 
+    # call function for corpus creation
     create_corpus(
         tokenizer_name=tokenizer_name,
         model_name=model_path,

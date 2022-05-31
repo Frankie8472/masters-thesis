@@ -49,6 +49,7 @@ def diff(topic_model_1, topic_model_2, distance="jensen_shannon", normed=True):
 
     distance_func = distances[distance]
 
+    # retrieve topic-word distributions from topic models
     if isinstance(topic_model_1, LdaMulticore) and isinstance(topic_model_2, LdaMulticore):
         d1, d2 = topic_model_1.get_topics(), topic_model_2.get_topics()
     elif isinstance(topic_model_1, NeuralLDA) and isinstance(topic_model_2, NeuralLDA):
@@ -65,6 +66,8 @@ def diff(topic_model_1, topic_model_2, distance="jensen_shannon", normed=True):
     for topic in np.ndindex(z.shape):
         topic1 = topic[0]
         topic2 = topic[1]
+
+        # calculate jensen-shannon distance
         z[topic] = distance_func(d1[topic1], d2[topic2])
     if normed:
         if np.abs(np.max(z)) > 1e-8:
@@ -86,8 +89,10 @@ def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
     :param topn: int, optional
         Integer corresponding to the number of top words to be extracted from each topic.
 
-    :return:
+    :return: int, the score
     """
+
+    # retrieve topic-word distributions from topic models
     if isinstance(model, LdaMulticore):
         topics = model.get_topics()
     elif isinstance(model, NeuralLDA):
@@ -95,6 +100,8 @@ def score_by_topic_coherence(model, texts, corpus, dictionary, topn=20):
     else:
         raise ValueError(f">> Error: topic model instance not defined")
     topics_ = [matutils.argsort(topic, topn=topn, reverse=True) for topic in topics]
+
+    # calculate coherence score
     score = CoherenceModel(processes=48, topics=topics_, texts=texts, corpus=corpus, dictionary=dictionary, coherence='c_v', topn=topn).get_coherence()
     return score
 
@@ -105,17 +112,21 @@ def score_by_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1=Non
     Note: 1. Is not stable for neural topic models as they are very sensitive on the change of the input value magnitude they are trained on.
           Meaning if they were trained on a word count of 1000 it is unstable to predict on a word count of 10000
           2. The difference of using filtered documents vs unfiltered is less than 0.03
-    :param topic_model_1:
-    :param topic_model_2:
-    :param corpus_1:
-    :param corpus_2:
-    :param documents_1:
-    :param documents_2:
-    :param distance:
-    :return:
+    :param topic_model_1: LdaModel or NeuralLDA model
+    :param topic_model_2: LdaModel or NeuralLDA model
+    :param corpus_1: list of (int, int)
+    :param corpus_2: list of (int, int)
+    :param documents_1: list of str
+    :param documents_2: list of str
+    :param distance: str, distance, e.g. jensen_shannon
+    :return: int, the tp score
     """
+
+    # calculate the difference matrix
     mdiff1 = diff(topic_model_1, topic_model_2, distance=distance)
     mdiff2 = diff(topic_model_2, topic_model_1, distance=distance)
+
+    # select the best match
     min1 = np.amin(mdiff1, axis=1)  # smaller ~ more similar, take the most similar score for each topic
     min2 = np.amin(mdiff2, axis=1)  # smaller ~ more similar, take the most similar score for each topic
 
@@ -150,7 +161,8 @@ def score_by_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1=Non
     else:
         raise ValueError(">> Error: topic models are not the same instance")
 
-    return (np.sum(topic_corpus_prob_1 * min1) + np.sum(topic_corpus_prob_2 * min2)) / 2
+    # weigh the best matches by their probability and take the mean of both
+    return (np.matmul(topic_corpus_prob_1, min1) + np.matmul(topic_corpus_prob_2, min2)) / 2
 
 
 def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1, corpus_2, distance='jensen_shannon'):
@@ -158,13 +170,15 @@ def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1
     Calculates the score by 'distance' and weights the strongest similarities
     by the respective normed sum of the most probable topic for each document over the whole corpus
 
-    :param topic_model_1:
-    :param topic_model_2:
-    :param corpus_1:
-    :param corpus_2:
-    :param distance:
-    :return:
+    :param topic_model_1: LdaModel or NeuralLDA model
+    :param topic_model_2: LdaModel or NeuralLDA model
+    :param corpus_1: list of (int, int)
+    :param corpus_2: list of (int, int)
+    :param distance: str, distance, e.g. jensen_shannon
+    :return: int, the tt score
     """
+
+    # calculate the difference matrix
     mdiff1 = diff(topic_model_1, topic_model_2, distance=distance)
     mdiff2 = diff(topic_model_2, topic_model_1, distance=distance)
     min1 = np.amin(mdiff1, axis=1)
@@ -174,6 +188,7 @@ def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1
         from pathos.multiprocessing import ProcessingPool as Pool
 
         def prob_list(topic_model, corpus):
+            # helper function to retrieve the most probable topic per document
             cnt = np.zeros(topic_model.num_topics)
             for doc in corpus:
                 topic_prob_list = topic_model.get_document_topics(doc, minimum_probability=0.0)
@@ -184,6 +199,7 @@ def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1
         workers = 8
         pool = Pool(ncpus=workers)
 
+        # retrieve the most probable topic per document
         logging.info("First split")
         cnt_split = pool.map(lambda x: prob_list(topic_model_1, x), list(train_lda.split(corpus_1, workers)))
         cnt1 = np.sum(cnt_split, axis=0)
@@ -200,6 +216,7 @@ def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1
         cnt1 = np.zeros(num_topics)
         cnt2 = np.zeros(num_topics)
 
+        # retrieve the most probable topic per document
         topic_prob_list = topic_model_1.model.get_thetas(topic_model_1.model.train_data)
         for i in topic_prob_list.argmax(axis=1):
             cnt1[i] += 1
@@ -211,26 +228,61 @@ def score_by_top_topic_corpus_probability(topic_model_1, topic_model_2, corpus_1
     else:
         raise ValueError(">> Error: topic models are not the same instance")
 
-    return (np.sum(cnt1 * min1) / np.sum(cnt1) + np.sum(cnt2 * min2) / np.sum(cnt2)) / 2
+    # norm the topic counts the maximum number of documents
+    topic_corpus_prob_1 = cnt1 / np.sum(cnt1)
+    topic_corpus_prob_2 = cnt2 / np.sum(cnt2)
+
+    # weigh the best matches by their topic probability and take the mean of both
+    return (np.matmul(topic_corpus_prob_1, min1) + np.matmul(topic_corpus_prob_2, min2)) / 2
 
 
 def save_score(score_path, score, key, idx, array_length):
+    """
+    helper function to save the score in a dictionary with a key in a json file
+    :param score_path: str, the path to the score file or where the score file should be saved if it does not exist
+    :param score: int, the calculated score
+    :param key: str, key name of the topic comparison, unique for each comparison
+    :param idx: int, index into the array
+    :param array_length: int, length of the array (equals the number of topic sizes that were tested)
+    """
+
     if os.path.exists(score_path):
         with open(score_path, "r") as file:
             scores = json.load(file)
     else:
+
+        # create new dict if it does not exist
         scores = dict()
     if key not in scores.keys():
+
+        # create entry if the key is not available
         scores[key] = np.ones(array_length).tolist()
     scores[key][idx] = score
+
     with open(score_path, "w") as file:
         json.dump(scores, file)
     return
 
 
 def score_iteration(data_folder_path, score_mode, samples, models, topic_models, num_topics, merge_types):
+    """
+    Function for calculating the score in a partitioned way to speed up total computation time
+
+    :param data_folder_path: str, path to the data folder
+    :param score_mode: str, indicates which part to calculate, "tt", "tp", "cv", "img"
+    :param samples: int, number of documents in the corpus
+    :param models: list of str, which topic model comparison to calculate
+    :param topic_models: list of str, "classic_lda", "nerual_lda"
+    :param num_topics: list of int, which topic sizes to score
+    :param merge_types: str, "intersection", "union"
+    """
+
     length = len(merge_types) * len(topic_models) * len(num_topics)
+
+    # initiailze progressbar
     with tqdm(total=length) as pbar:
+
+        # name preprocessing
         model1_name = models.split("-")[0]
         model2_name = models.split("-")[1]
         model1_name_ = model1_name
@@ -245,6 +297,8 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
             # Load doc, cor, dic
             subroot_path1 = f"{root_path}{model1_name_}/{merge_type}/"
             subroot_path2 = f"{root_path}{model2_name_}/{merge_type}/"
+
+            # load data
             documents1, dictionary1, corpus1 = train_lda.load_data(
                 docs_path=f"{subroot_path1}documents",
                 dic_path=f"{subroot_path1}dictionary",
@@ -255,12 +309,7 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
                 dic_path=f"{subroot_path2}dictionary",
                 cor_path=f"{subroot_path2}corpus"
             )
-            """
-            documents1, _, _, documents2, _, _ = train_lda.tokenize_bow_dual(
-                train_lda.load_dataset(data_folder_path, model1_name_, "multinomial" if sampling_method == "" else sampling_method[1:], samples),
-                train_lda.load_dataset(data_folder_path, model2_name_, "multinomial" if sampling_method == "" else sampling_method[1:], samples),
-                merge_type == "union", workers=7, return_filtered_docs=False)
-            """
+
             for topic_model in topic_models:
                 for idx, topic in enumerate(num_topics):
                     var = True
@@ -304,8 +353,9 @@ def score_iteration(data_folder_path, score_mode, samples, models, topic_models,
                             score_path = f"{root_path}tp_score.json"
                             key = f"{topic_model}-{models}-{merge_type}{var_key}"
                             save_score(score_path, score, key, idx, len(num_topics))
+
                         elif score_mode == "img":
-                            # Calculate the Difference Graph and save it
+                            # Calculate the distance graph and save it
                             distance = 'jensen_shannon'
 
                             mdiff = diff(model1, model2, distance=distance)
@@ -344,10 +394,10 @@ def main():
         python score_lda.py [data_folder_path] [score_mode] [10000] [models]
 
         score_mode: str
-            cv
-            tt (top_topic
-            tp
-            img
+            cv - This is our score in the thesis for evaluating the quality of topic models
+            tt - This is our score in the thesis for comparing topic models
+            tp - We do not use this score in our thesis, this was just an experiment
+            img - this plots the illustrating plots of the distance matrices
         samples: int
             10000, 100000
         models:
@@ -357,6 +407,7 @@ def main():
             trafo_xl_nt-wiki_nt, wiki_nt-arxiv, wiki_nt-wiki_nt, trafo_xl_nt-trafo_xl, trafo_xl-arxiv, gpt2-trafo_xl_nt, trafo_xl-trafo_xl
             trafo_xl_nt-arxiv, gpt2-gpt2, gpt2-arxiv, gpt2_nt-trafo_xl, gpt2-trafo_xl, gpt2_nt-trafo_xl_nt, gpt2_nt-gpt2_nt, gpt2_nt-gpt2
     """
+
     if len(sys.argv) < 5:
         raise ValueError(f">> ERROR: Wrong number of arguments")
 
@@ -384,4 +435,4 @@ def test():
 
 if __name__ == '__main__':
     main()
-    #test()
+    # test()
