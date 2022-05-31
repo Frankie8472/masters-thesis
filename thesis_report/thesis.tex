@@ -2,12 +2,33 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{float}
+\usepackage{pdfpages}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DOCUMENT METADATA
 
 \thesistype{Master's Thesis} % Master's Thesis, Bachelor's Thesis, Semester Thesis, Group Project
-\title{Creating a Topic Model of Language Models}
+\title{Probing Language Models With Topic Models}
+
+% Analyzing Language Models with Topic Models
+% What Topics tell us about Language Models
+% Topic Models, the key to understanding Bias in Language Models?
+% The meaning of Topics in a Language Model
+  
+% Topic Models, the key to understanding Language Models?
+% What Topic Models have to say about Language Models
+% Topic Models and their opinion about Language Models
+% Topic Models, an Insight into Language Models
+% What Topics say about a Language Model
+% What the Topics of a Language Model reveal
+% What Topics of a Language Model reveal
+% Language Models and the meaning of their Topics
+% Looking deep into Language Models with a Topic Model Analysis
+% Topic Models analyze Language Models
+% A Topic-Analysis of Language Models (TALM)
+% Topics and their insight into Language Models
+
 
 \author{Franz Knobel}
 \email{knobelf@student.ethz.ch}
@@ -37,13 +58,15 @@ ETH Zürich}
 \cleardoublepage
 
 \begin{acknowledgements}
-	I thank Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+First and foremost, I would like to thank my supervisor Clara Meister. Her constant support in the form of motivation, feedback, fresh ideas and explanations was an invaluable help and I appreciated it greatly. 
+Secondly, I would like to thank Denise Spicher from the study administration. Her persistent moral and administrative support throughout my studies made ETH feel like home. 
+I would also like to thank my supervising professor Ryan Cotterell for his valuable insights into my work. 
+Furthermore, the continuous support from friends and family helped me stay on track over those six months. Thank you all for being there for me!
 \end{acknowledgements}
 
 
 \begin{abstract}
-    The abstract should be short, stating what you did and what the most important result is.
-	Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+This thesis introduces a new approach to analyzing language models with topic models. Specifically, we generate corpora from language models and then use topic models to analyze the language models via these corpora. This analysis reveals which areas of the semantic space language models used today are learning. We then compare the topic model distributions of the model-generated corpora with a topic model fitted to its training data---using a metric based on the Jensen-Shannon distance---to assess whether the innate topic distribution of a language model is a reflection of its training or a byproduct of its inductive biases. Through the variation of several factors, e.g. model architecture and generation strategy, we are able to gain a better understanding of the inductive biases of certain components that are part of the language modeling pipeline. 
 \end{abstract}
 
 \tableofcontents
@@ -52,18 +75,16 @@ ETH Zürich}
 
 % Start writing here
 \include{chapters/introduction}
-\include{chapters/relatedwork}
+\include{chapters/background}
 \include{chapters/problemstatement}
-\include{chapters/analysis}
-\include{chapters/solution}
-\include{chapters/experimentation}
-\include{chapters/evaluation}
-\include{chapters/conclusion}
+\include{chapters/experiments}
+\include{chapters/discussion}
 
 % This displays the bibliography for all cited external documents. All references have to be defined in the file references.bib and can then be cited from within this document.
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
 % This creates an appendix chapter, comment if not needed.
-\include{chapters/appendix}
+%\include{chapters/appendix}
+\includepdf[pages={1-},scale=1]{attachments/declaration-originality.pdf}
 \end{document}

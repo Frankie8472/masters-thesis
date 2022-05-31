@@ -65,6 +65,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \AtEndOfClass{
 \RequirePackage{amsmath}
+\RequirePackage{mathtools}
 \RequirePackage{amsthm}
 \RequirePackage{amssymb}
 \RequirePackage{setspace}
@@ -107,6 +108,12 @@
             
 % Allows to use nice todo notes on the paper margin
 \usepackage{todonotes}
+\usepackage{multicol}
+\usepackage[newfloat]{minted}
+\usepackage{caption}
+
+\newenvironment{code}{\captionsetup{type=listing}}{}
+\SetupFloatingEnvironment{listing}{name=Code Snippet}
 
 % Defines to specific todo commands
 \setlength{\marginparwidth}{3cm}
@@ -115,6 +122,8 @@
 \newcommand{\REMARK}[1]
 {\todo[prepend, color=green, caption={\textbf{Remark}}, size=\footnotesize]{\renewcommand{\baselinestretch}{0.85} \selectfont#1\par}}
 }
+\newcommand{\note}[4][]{\todo[author=#2,color=#3,size=\scriptsize,fancyline,caption={},#1]{#4}}
+\newcommand{\clara}[2][]{\note[#1]{clara}{teal!60}{#2}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -469,7 +478,7 @@
 %      {\ifnum \c@chapter>\z@ \thechapter.\fi \@arabic\c@theorem} %kai
 
 \newcommand*\chaptermark[1]{}
-\setcounter{secnumdepth}{2}
+\setcounter{secnumdepth}{3}
 \newcounter {part}
 \newcounter {chapter}
 \newcounter {section}[chapter]
@@ -853,7 +862,7 @@
 \newcommand\@pnumwidth{1.85em}
 \newcommand\@tocrmarg{2.55em}
 \newcommand\@dotsep{4.5}
-\setcounter{tocdepth}{2}
+\setcounter{tocdepth}{3}
 \newcommand\tableofcontents{%
     \if@twocolumn
       \@restonecoltrue\onecolumn
